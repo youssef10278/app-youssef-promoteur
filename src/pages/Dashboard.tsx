@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -146,56 +146,100 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card className="card-premium hover-lift cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
-                <Plus className="h-5 w-5" />
-                Nouveau Projet
-              </CardTitle>
-              <CardDescription>
-                Créer un nouveau projet immobilier
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full btn-hero">
-                Créer un Projet
-              </Button>
-            </CardContent>
-          </Card>
+          <Link to="/create-project">
+            <Card className="card-premium hover-lift cursor-pointer group">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
+                  <Plus className="h-5 w-5" />
+                  Nouveau Projet
+                </CardTitle>
+                <CardDescription>
+                  Créer un nouveau projet immobilier
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full btn-hero">
+                  Créer un Projet
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="card-premium hover-lift cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
-                <DollarSign className="h-5 w-5" />
-                Gérer les Dépenses
-              </CardTitle>
-              <CardDescription>
-                Ajouter et suivre les dépenses par projet
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" variant="outline">
-                Voir les Dépenses
-              </Button>
-            </CardContent>
-          </Card>
+          <Link to="/expenses">
+            <Card className="card-premium hover-lift cursor-pointer group">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
+                  <DollarSign className="h-5 w-5" />
+                  Gérer les Dépenses
+                </CardTitle>
+                <CardDescription>
+                  Ajouter et suivre les dépenses par projet
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full" variant="outline">
+                  Voir les Dépenses
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="card-premium hover-lift cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
-                <FileCheck className="h-5 w-5" />
-                Suivi des Chèques
-              </CardTitle>
-              <CardDescription>
-                Gérer les chèques reçus et donnés
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" variant="outline">
-                Voir les Chèques
-              </Button>
-            </CardContent>
-          </Card>
+          <Link to="/checks">
+            <Card className="card-premium hover-lift cursor-pointer group">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
+                  <FileCheck className="h-5 w-5" />
+                  Suivi des Chèques
+                </CardTitle>
+                <CardDescription>
+                  Gérer les chèques reçus et donnés
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full" variant="outline">
+                  Voir les Chèques
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link to="/projects">
+            <Card className="card-premium hover-lift cursor-pointer group">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
+                  <Building2 className="h-5 w-5" />
+                  Mes Projets
+                </CardTitle>
+                <CardDescription>
+                  Voir et gérer tous vos projets
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full" variant="outline">
+                  Voir les Projets
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link to="/sales">
+            <Card className="card-premium hover-lift cursor-pointer group">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
+                  <TrendingUp className="h-5 w-5" />
+                  Gestion des Ventes
+                </CardTitle>
+                <CardDescription>
+                  Suivre les ventes et avances reçues
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full" variant="outline">
+                  Voir les Ventes
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       </main>
     </div>
