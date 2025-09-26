@@ -19,13 +19,16 @@ interface Project {
 
 interface Sale {
   id: string;
-  type_propriete: string;
   description: string;
   surface: number;
   prix_total: number;
   avance_declare: number;
   avance_non_declare: number;
   avance_total: number;
+  avance_cheque: number;
+  avance_espece: number;
+  type_propriete: 'appartement' | 'villa' | 'terrain' | 'local_commercial';
+  created_at: string;
   projects: { nom: string };
 }
 
@@ -96,12 +99,14 @@ const Sales = () => {
     const formData = new FormData(e.currentTarget);
     const saleData = {
       project_id: formData.get('project_id') as string,
-      type_propriete: formData.get('type_propriete') as 'appartement' | 'garage',
       description: formData.get('description') as string,
       surface: parseFloat(formData.get('surface') as string),
       prix_total: parseFloat(formData.get('prix_total') as string),
       avance_declare: parseFloat(formData.get('avance_declare') as string) || 0,
       avance_non_declare: parseFloat(formData.get('avance_non_declare') as string) || 0,
+      avance_cheque: parseFloat(formData.get('avance_cheque') as string) || 0,
+      avance_espece: parseFloat(formData.get('avance_espece') as string) || 0,
+      type_propriete: formData.get('type_propriete') as 'appartement' | 'villa' | 'terrain' | 'local_commercial',
     };
 
     try {

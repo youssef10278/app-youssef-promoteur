@@ -100,7 +100,8 @@ const Expenses = () => {
       nom: formData.get('nom') as string,
       montant_declare: parseFloat(formData.get('montant_declare') as string) || 0,
       montant_non_declare: parseFloat(formData.get('montant_non_declare') as string) || 0,
-      methode_paiement: formData.get('methode_paiement') as 'cheque' | 'espece' | 'cheque_et_espece',
+      montant_cheque: parseFloat(formData.get('montant_cheque') as string) || 0,
+      montant_espece: parseFloat(formData.get('montant_espece') as string) || 0,
       description: formData.get('description') as string,
     };
 
