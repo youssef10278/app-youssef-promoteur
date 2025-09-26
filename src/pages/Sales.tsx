@@ -33,7 +33,7 @@ const Sales = () => {
   const { user, loading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [selectedProject, setSelectedProject] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -129,7 +129,7 @@ const Sales = () => {
     }
   };
 
-  const filteredSales = selectedProject
+  const filteredSales = selectedProject && selectedProject !== 'all'
     ? sales.filter(sale => sale.projects.nom === selectedProject)
     : sales;
 
@@ -294,7 +294,7 @@ const Sales = () => {
               <SelectValue placeholder="Filtrer par projet" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tous les projets</SelectItem>
+              <SelectItem value="all">Tous les projets</SelectItem>
               {projects.map((project) => (
                 <SelectItem key={project.id} value={project.nom}>
                   <div className="flex items-center gap-2">

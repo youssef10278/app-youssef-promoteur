@@ -99,7 +99,7 @@ const Checks = () => {
     const formData = new FormData(e.currentTarget);
     const checkData = {
       user_id: user?.id,
-      project_id: formData.get('project_id') as string || null,
+      project_id: formData.get('project_id') as string === 'none' ? null : formData.get('project_id') as string,
       type_cheque: formData.get('type_cheque') as 'recu' | 'donne',
       montant: parseFloat(formData.get('montant') as string),
       numero_cheque: formData.get('numero_cheque') as string,
@@ -232,7 +232,7 @@ const Checks = () => {
                         <SelectValue placeholder="Sélectionner un projet" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Aucun projet</SelectItem>
+                        <SelectItem value="none">Aucun projet</SelectItem>
                         {projects.map((project) => (
                           <SelectItem key={project.id} value={project.id}>
                             {project.nom}
