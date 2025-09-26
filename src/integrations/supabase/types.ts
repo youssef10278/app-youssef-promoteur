@@ -264,7 +264,12 @@ export type Database = {
     Enums: {
       check_type: "recu" | "donne"
       payment_method: "cheque" | "espece" | "cheque_et_espece"
-      property_type: "appartement" | "garage"
+      property_type:
+        | "appartement"
+        | "garage"
+        | "villa"
+        | "terrain"
+        | "local_commercial"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -394,7 +399,13 @@ export const Constants = {
     Enums: {
       check_type: ["recu", "donne"],
       payment_method: ["cheque", "espece", "cheque_et_espece"],
-      property_type: ["appartement", "garage"],
+      property_type: [
+        "appartement",
+        "garage",
+        "villa",
+        "terrain",
+        "local_commercial",
+      ],
     },
   },
 } as const

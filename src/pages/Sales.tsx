@@ -27,7 +27,7 @@ interface Sale {
   avance_total: number;
   avance_cheque: number;
   avance_espece: number;
-  type_propriete: 'appartement' | 'villa' | 'terrain' | 'local_commercial';
+  type_propriete: 'appartement' | 'villa' | 'terrain' | 'local_commercial' | 'garage';
   created_at: string;
   projects: { nom: string };
 }
@@ -106,7 +106,7 @@ const Sales = () => {
       avance_non_declare: parseFloat(formData.get('avance_non_declare') as string) || 0,
       avance_cheque: parseFloat(formData.get('avance_cheque') as string) || 0,
       avance_espece: parseFloat(formData.get('avance_espece') as string) || 0,
-      type_propriete: formData.get('type_propriete') as 'appartement' | 'villa' | 'terrain' | 'local_commercial',
+      type_propriete: formData.get('type_propriete') as 'appartement' | 'villa' | 'terrain' | 'local_commercial' | 'garage',
     };
 
     try {
@@ -211,6 +211,9 @@ const Sales = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="appartement">Appartement</SelectItem>
+                        <SelectItem value="villa">Villa</SelectItem>
+                        <SelectItem value="terrain">Terrain</SelectItem>
+                        <SelectItem value="local_commercial">Local Commercial</SelectItem>  
                         <SelectItem value="garage">Garage</SelectItem>
                       </SelectContent>
                     </Select>
