@@ -78,8 +78,9 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
-          methode_paiement: Database["public"]["Enums"]["payment_method"]
+          montant_cheque: number
           montant_declare: number
+          montant_espece: number
           montant_non_declare: number
           montant_total: number | null
           nom: string
@@ -90,8 +91,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          methode_paiement: Database["public"]["Enums"]["payment_method"]
+          montant_cheque?: number
           montant_declare?: number
+          montant_espece?: number
           montant_non_declare?: number
           montant_total?: number | null
           nom: string
@@ -102,8 +104,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          methode_paiement?: Database["public"]["Enums"]["payment_method"]
+          montant_cheque?: number
           montant_declare?: number
+          montant_espece?: number
           montant_non_declare?: number
           montant_total?: number | null
           nom?: string
@@ -197,7 +200,9 @@ export type Database = {
       }
       sales: {
         Row: {
+          avance_cheque: number
           avance_declare: number
+          avance_espece: number
           avance_non_declare: number
           avance_total: number | null
           created_at: string
@@ -210,7 +215,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avance_cheque?: number
           avance_declare?: number
+          avance_espece?: number
           avance_non_declare?: number
           avance_total?: number | null
           created_at?: string
@@ -223,7 +230,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avance_cheque?: number
           avance_declare?: number
+          avance_espece?: number
           avance_non_declare?: number
           avance_total?: number | null
           created_at?: string
