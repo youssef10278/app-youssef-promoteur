@@ -2,39 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Professional Real Estate Management Design System
-All colors MUST be HSL.
+/* Premium Real Estate Management Design System - 25M$ Level
+Modern, sophisticated color palette inspired by top-tier SaaS applications
+All colors MUST be HSL for consistency and theming support.
 */
 
 @layer base {
   :root {
-    /* Core Background & Text */
-    --background: 220 13% 97%;
-    --foreground: 215 25% 20%;
+    /* Core Background & Text - Premium neutral palette */
+    --background: 0 0% 100%;
+    --background-secondary: 240 4.8% 95.9%;
+    --background-tertiary: 240 5.9% 90%;
+    --foreground: 240 10% 3.9%;
+    --foreground-secondary: 240 3.8% 46.1%;
+    --foreground-tertiary: 240 4.8% 65.9%;
 
-    /* Cards & Components */
+    /* Cards & Components - Elevated surfaces */
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 20%;
+    --card-foreground: 240 10% 3.9%;
+    --card-hover: 240 4.8% 98%;
+    --card-border: 240 5.9% 90%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 20%;
+    --popover-foreground: 240 10% 3.9%;
 
-    /* Primary Brand - Professional Blue */
-    --primary: 215 84% 25%;
+    /* Primary Brand - Modern indigo with depth */
+    --primary: 239 84% 67%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 215 84% 30%;
-    --primary-light: 215 50% 85%;
+    --primary-hover: 239 84% 62%;
+    --primary-light: 239 84% 95%;
+    --primary-dark: 239 84% 45%;
 
-    /* Secondary - Elegant Gold Accent */
-    --secondary: 45 90% 55%;
-    --secondary-foreground: 215 25% 20%;
-    --secondary-hover: 45 90% 50%;
-    --secondary-light: 45 50% 90%;
+    /* Secondary - Sophisticated purple accent */
+    --secondary: 270 95% 75%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 270 95% 70%;
+    --secondary-light: 270 95% 95%;
 
-    /* Success - Money Green */
-    --success: 140 65% 45%;
+    /* Success - Modern emerald */
+    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    --success-light: 140 45% 88%;
+    --success-light: 142 76% 95%;
 
     /* Warning - Alert Orange */
     --warning: 35 85% 60%;
@@ -198,22 +206,51 @@ All colors MUST be HSL.
 }
 
 @layer components {
-  /* Premium Button Variants */
+  /* Premium Button System */
   .btn-hero {
-    @apply bg-gradient-to-r from-primary to-primary-hover text-primary-foreground shadow-primary hover:shadow-lg transform hover:scale-105 transition-all duration-300;
+    @apply relative overflow-hidden bg-gradient-to-r from-primary via-primary-hover to-secondary
+           text-primary-foreground font-semibold px-8 py-4 rounded-xl
+           shadow-lg hover:shadow-xl transform hover:scale-[1.02]
+           transition-all duration-300 ease-out
+           before:absolute before:inset-0 before:bg-gradient-to-r
+           before:from-white/20 before:to-transparent before:opacity-0
+           before:hover:opacity-100 before:transition-opacity before:duration-300;
   }
 
-  .btn-secondary-gradient {
-    @apply bg-gradient-to-r from-secondary to-secondary-hover text-secondary-foreground shadow-secondary hover:shadow-lg transform hover:scale-105 transition-all duration-300;
+  .btn-premium {
+    @apply relative bg-gradient-to-r from-primary to-primary-hover
+           text-primary-foreground font-medium px-6 py-3 rounded-lg
+           shadow-md hover:shadow-lg transform hover:scale-[1.01]
+           transition-all duration-200 ease-out
+           border border-primary/20 hover:border-primary/40;
   }
 
-  /* Card Variants */
+  .btn-glass {
+    @apply relative backdrop-blur-md bg-white/10 border border-white/20
+           text-foreground font-medium px-6 py-3 rounded-lg
+           shadow-lg hover:shadow-xl hover:bg-white/20
+           transition-all duration-300 ease-out;
+  }
+
+  /* Modern Card System */
   .card-premium {
-    @apply bg-gradient-to-br from-card to-muted/20 border border-border/50 shadow-md hover:shadow-lg transition-all duration-300;
+    @apply relative bg-gradient-to-br from-card via-card to-muted/30
+           border border-border/60 rounded-xl shadow-sm hover:shadow-md
+           transition-all duration-300 ease-out
+           before:absolute before:inset-0 before:rounded-xl
+           before:bg-gradient-to-br before:from-white/5 before:to-transparent
+           before:pointer-events-none;
   }
 
-  .card-stats {
-    @apply bg-gradient-to-br from-card via-card to-primary-light/5 border border-border/50 shadow-md hover:shadow-primary/20 transition-all duration-300;
+  .card-glass {
+    @apply relative backdrop-blur-xl bg-white/60 dark:bg-black/20
+           border border-white/20 dark:border-white/10 rounded-xl
+           shadow-lg hover:shadow-xl transition-all duration-300;
+  }
+
+  .card-elevated {
+    @apply bg-card border border-border/50 rounded-xl shadow-lg hover:shadow-xl
+           transform hover:scale-[1.01] transition-all duration-300 ease-out;
   }
 
   /* Status Badges */
@@ -299,5 +336,65 @@ All colors MUST be HSL.
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px hsl(var(--primary) / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.8);
   }
 }
