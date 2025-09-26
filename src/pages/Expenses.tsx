@@ -23,8 +23,10 @@ interface Expense {
   montant_declare: number;
   montant_non_declare: number;
   montant_total: number;
-  methode_paiement: string;
+  montant_cheque: number;
+  montant_espece: number;
   description: string;
+  created_at: string;
   projects: { nom: string };
 }
 
@@ -309,11 +311,8 @@ const Expenses = () => {
                       <CardTitle className="text-lg">{expense.nom}</CardTitle>
                       <CardDescription>{expense.projects.nom}</CardDescription>
                     </div>
-                    <Badge 
-                      variant={expense.methode_paiement === 'cheque' ? 'default' : 'secondary'}
-                      className={expense.methode_paiement === 'cheque' ? 'badge-success' : 'badge-warning'}
-                    >
-                      {expense.methode_paiement.replace('_', ' ').toUpperCase()}
+                    <Badge variant="secondary" className="bg-primary/10 text-primary">
+                      Paiement mixte
                     </Badge>
                   </div>
                 </CardHeader>
