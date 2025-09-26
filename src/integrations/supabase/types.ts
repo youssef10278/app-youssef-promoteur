@@ -14,7 +14,237 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      checks: {
+        Row: {
+          created_at: string
+          date_emission: string
+          date_encaissement: string | null
+          description: string | null
+          facture_recue: boolean
+          id: string
+          montant: number
+          nom_beneficiaire: string | null
+          nom_emetteur: string | null
+          numero_cheque: string | null
+          project_id: string | null
+          type_cheque: Database["public"]["Enums"]["check_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_emission: string
+          date_encaissement?: string | null
+          description?: string | null
+          facture_recue?: boolean
+          id?: string
+          montant: number
+          nom_beneficiaire?: string | null
+          nom_emetteur?: string | null
+          numero_cheque?: string | null
+          project_id?: string | null
+          type_cheque: Database["public"]["Enums"]["check_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_emission?: string
+          date_encaissement?: string | null
+          description?: string | null
+          facture_recue?: boolean
+          id?: string
+          montant?: number
+          nom_beneficiaire?: string | null
+          nom_emetteur?: string | null
+          numero_cheque?: string | null
+          project_id?: string | null
+          type_cheque?: Database["public"]["Enums"]["check_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          methode_paiement: Database["public"]["Enums"]["payment_method"]
+          montant_declare: number
+          montant_non_declare: number
+          montant_total: number | null
+          nom: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          methode_paiement: Database["public"]["Enums"]["payment_method"]
+          montant_declare?: number
+          montant_non_declare?: number
+          montant_total?: number | null
+          nom: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          methode_paiement?: Database["public"]["Enums"]["payment_method"]
+          montant_declare?: number
+          montant_non_declare?: number
+          montant_total?: number | null
+          nom?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          nom: string
+          societe: string | null
+          telephone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          nom: string
+          societe?: string | null
+          telephone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          nom?: string
+          societe?: string | null
+          telephone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          id: string
+          localisation: string
+          nom: string
+          nombre_appartements: number
+          nombre_garages: number
+          nombre_lots: number
+          societe: string
+          surface_totale: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          localisation: string
+          nom: string
+          nombre_appartements?: number
+          nombre_garages?: number
+          nombre_lots: number
+          societe: string
+          surface_totale: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          localisation?: string
+          nom?: string
+          nombre_appartements?: number
+          nombre_garages?: number
+          nombre_lots?: number
+          societe?: string
+          surface_totale?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sales: {
+        Row: {
+          avance_declare: number
+          avance_non_declare: number
+          avance_total: number | null
+          created_at: string
+          description: string
+          id: string
+          prix_total: number
+          project_id: string
+          surface: number
+          type_propriete: Database["public"]["Enums"]["property_type"]
+          updated_at: string
+        }
+        Insert: {
+          avance_declare?: number
+          avance_non_declare?: number
+          avance_total?: number | null
+          created_at?: string
+          description: string
+          id?: string
+          prix_total: number
+          project_id: string
+          surface: number
+          type_propriete: Database["public"]["Enums"]["property_type"]
+          updated_at?: string
+        }
+        Update: {
+          avance_declare?: number
+          avance_non_declare?: number
+          avance_total?: number | null
+          created_at?: string
+          description?: string
+          id?: string
+          prix_total?: number
+          project_id?: string
+          surface?: number
+          type_propriete?: Database["public"]["Enums"]["property_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +253,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      check_type: "recu" | "donne"
+      payment_method: "cheque" | "espece" | "cheque_et_espece"
+      property_type: "appartement" | "garage"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +382,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      check_type: ["recu", "donne"],
+      payment_method: ["cheque", "espece", "cheque_et_espece"],
+      property_type: ["appartement", "garage"],
+    },
   },
 } as const
