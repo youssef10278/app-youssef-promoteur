@@ -4,406 +4,344 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Home, Plus, ArrowLeft, Building2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Home, Plus, ArrowLeft, Building2, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-interface Project {
-  id: string;
-  nom: string;
-}
-
-interface Sale {
-  id: string;
-  description: string;
-  surface: number;
-  prix_total: number;
-  avance_declare: number;
-  avance_non_declare: number;
-  avance_total: number;
-  avance_cheque: number;
-  avance_espece: number;
-  type_propriete: 'appartement' | 'villa' | 'terrain' | 'local_commercial' | 'garage';
-  created_at: string;
-  projects: { nom: string };
-}
+import { Project, Sale, SaleWithPayments, SalesFilters } from '@/types/sale-new';
+import { NewSaleModal } from '@/components/sales/NewSaleModal';
+import { SalesList } from '@/components/sales/SalesList';
+import { AddPaymentModal } from '@/components/sales/AddPaymentModal';
+import { SaleDetailsModal } from '@/components/sales/SaleDetailsModal';
+import { SalesFilters as SalesFiltersComponent, SalesFiltersState } from '@/components/sales/SalesFilters';
+import { ProjectAnalyticsComponent } from '@/components/sales/ProjectAnalytics';
+import { ProjectSelector } from '@/components/common/ProjectSelector';
+import { SalesService } from '@/services/salesService';
 
 const Sales = () => {
   const { user, loading } = useAuth();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('all');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
+  // États principaux
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [sales, setSales] = useState<SaleWithPayments[]>([]);
+  const [filteredSales, setFilteredSales] = useState<SaleWithPayments[]>([]);
+  const [isLoadingSales, setIsLoadingSales] = useState(false);
+  const [selectedSaleForPayment, setSelectedSaleForPayment] = useState<SaleWithPayments | null>(null);
+  const [selectedSaleForDetails, setSelectedSaleForDetails] = useState<SaleWithPayments | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // États pour les filtres
+  const [filters, setFilters] = useState<SalesFiltersState>({
+    searchTerm: '',
+    statut: '',
+    type_propriete: '',
+    mode_paiement: '',
+    date_debut: null,
+    date_fin: null,
+    montant_min: null,
+    montant_max: null,
+    sortBy: 'created_at',
+    sortOrder: 'desc'
+  });
+
+  // Chargement des projets
   useEffect(() => {
-    if (user) {
-      fetchProjects();
-      fetchSales();
-    }
-  }, [user]);
+    if (!user?.id) return;
 
-  const fetchProjects = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('id, nom')
-        .eq('user_id', user?.id)
-        .order('nom');
+    const fetchProjects = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setProjects(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les projets",
-        variant: "destructive",
-      });
-    }
-  };
+        if (error) throw error;
+        setProjects(data || []);
 
-  const fetchSales = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('sales')
-        .select(`
-          *,
-          projects!inner(nom, user_id)
-        `)
-        .eq('projects.user_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setSales(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les ventes",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    const formData = new FormData(e.currentTarget);
-    const saleData = {
-      project_id: formData.get('project_id') as string,
-      description: formData.get('description') as string,
-      surface: parseFloat(formData.get('surface') as string),
-      prix_total: parseFloat(formData.get('prix_total') as string),
-      avance_declare: parseFloat(formData.get('avance_declare') as string) || 0,
-      avance_non_declare: parseFloat(formData.get('avance_non_declare') as string) || 0,
-      avance_cheque: parseFloat(formData.get('avance_cheque') as string) || 0,
-      avance_espece: parseFloat(formData.get('avance_espece') as string) || 0,
-      type_propriete: formData.get('type_propriete') as 'appartement' | 'villa' | 'terrain' | 'local_commercial' | 'garage',
+        // Sélectionner le premier projet par défaut
+        if (data && data.length > 0) {
+          setSelectedProject(data[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les projets",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    try {
-      const { error } = await supabase
-        .from('sales')
-        .insert([saleData]);
+    fetchProjects();
+  }, [user?.id, toast]);
 
-      if (error) throw error;
+  // Charger les ventes du projet sélectionné
+  useEffect(() => {
+    if (!selectedProject || !user?.id) return;
 
-      toast({
-        title: "Succès",
-        description: "Vente ajoutée avec succès",
-      });
+    const fetchSales = async () => {
+      setIsLoadingSales(true);
+      try {
+        // Convertir les filtres au format attendu par le service
+        const salesFilters: SalesFilters = {
+          searchTerm: filters.searchTerm || undefined,
+          statut: filters.statut || undefined,
+          type_propriete: filters.type_propriete || undefined,
+          mode_paiement: filters.mode_paiement || undefined,
+          date_debut: filters.date_debut?.toISOString() || undefined,
+          date_fin: filters.date_fin?.toISOString() || undefined,
+          montant_min: filters.montant_min || undefined,
+          montant_max: filters.montant_max || undefined,
+          sortBy: filters.sortBy,
+          sortOrder: filters.sortOrder
+        };
 
-      setIsDialogOpen(false);
-      fetchSales();
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: "Impossible d'ajouter la vente",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
+        // Charger les ventes depuis la base de données
+        const salesData = await SalesService.getSalesWithPayments(selectedProject, salesFilters);
+        setSales(salesData);
+        setFilteredSales(salesData);
+      } catch (error) {
+        console.error('Error fetching sales:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les ventes",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingSales(false);
+      }
+    };
+
+    fetchSales();
+  }, [selectedProject, user?.id, filters, toast]);
+
+  // Handler pour les changements de filtres
+  const handleFiltersChange = (newFilters: SalesFiltersState) => {
+    setFilters(newFilters);
+  };
+
+  // Handlers pour les modals
+  const handleSaleCreated = async () => {
+    setIsDialogOpen(false);
+    // Recharger les ventes
+    if (selectedProject && user?.id) {
+      try {
+        const salesFilters: SalesFilters = {
+          searchTerm: filters.searchTerm || undefined,
+          statut: filters.statut || undefined,
+          type_propriete: filters.type_propriete || undefined,
+          mode_paiement: filters.mode_paiement || undefined,
+          date_debut: filters.date_debut?.toISOString() || undefined,
+          date_fin: filters.date_fin?.toISOString() || undefined,
+          montant_min: filters.montant_min || undefined,
+          montant_max: filters.montant_max || undefined,
+          sortBy: filters.sortBy,
+          sortOrder: filters.sortOrder
+        };
+        const salesData = await SalesService.getSalesWithPayments(selectedProject, salesFilters);
+        setSales(salesData);
+        setFilteredSales(salesData);
+      } catch (error) {
+        console.error('Error reloading sales:', error);
+      }
     }
   };
 
-  const filteredSales = selectedProject && selectedProject !== 'all'
-    ? sales.filter(sale => sale.projects.nom === selectedProject)
-    : sales;
-
-  const calculateProgress = (sale: Sale) => {
-    return sale.prix_total > 0 ? (sale.avance_total / sale.prix_total) * 100 : 0;
+  const handlePaymentAdded = async () => {
+    setSelectedSaleForPayment(null);
+    // Recharger les ventes
+    if (selectedProject && user?.id) {
+      try {
+        const salesFilters: SalesFilters = {
+          searchTerm: filters.searchTerm || undefined,
+          statut: filters.statut || undefined,
+          type_propriete: filters.type_propriete || undefined,
+          mode_paiement: filters.mode_paiement || undefined,
+          date_debut: filters.date_debut?.toISOString() || undefined,
+          date_fin: filters.date_fin?.toISOString() || undefined,
+          montant_min: filters.montant_min || undefined,
+          montant_max: filters.montant_max || undefined,
+          sortBy: filters.sortBy,
+          sortOrder: filters.sortOrder
+        };
+        const salesData = await SalesService.getSalesWithPayments(selectedProject, salesFilters);
+        setSales(salesData);
+        setFilteredSales(salesData);
+      } catch (error) {
+        console.error('Error reloading sales:', error);
+      }
+    }
   };
 
-  if (loading || isLoading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-    </div>;
+  // Redirection si non authentifié
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Chargement...</div>;
   }
 
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Chargement des projets...</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
-      <header className="bg-gradient-primary text-primary-foreground shadow-premium">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex justify-between items-center">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 sm:h-16 gap-4">
             <div className="flex items-center space-x-4">
               <Link to="/dashboard">
-                <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10">
+                <Button variant="ghost" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Retour
                 </Button>
               </Link>
-              <div>
-                <h1 className="text-2xl font-bold">Gestion des Ventes</h1>
-                <p className="text-primary-foreground/80">
-                  Suivez vos ventes et avances reçues
-                </p>
+              <div className="flex items-center space-x-2">
+                <Home className="h-5 w-5 text-primary" />
+                <h1 className="text-lg sm:text-xl font-bold">Gestion des Ventes</h1>
               </div>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="btn-secondary-gradient">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Ajouter Vente
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Nouvelle Vente</DialogTitle>
-                  <DialogDescription>
-                    Enregistrer une nouvelle vente
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="project_id">Projet *</Label>
-                    <Select name="project_id" required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner un projet" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {projects.map((project) => (
-                          <SelectItem key={project.id} value={project.id}>
-                            {project.nom}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="type_propriete">Type de propriété *</Label>
-                    <Select name="type_propriete" required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="appartement">Appartement</SelectItem>
-                        <SelectItem value="villa">Villa</SelectItem>
-                        <SelectItem value="terrain">Terrain</SelectItem>
-                        <SelectItem value="local_commercial">Local Commercial</SelectItem>  
-                        <SelectItem value="garage">Garage</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+              {/* Sélection du projet */}
+              <div className="flex items-center space-x-2 w-full sm:w-auto">
+                <span className="text-sm font-medium whitespace-nowrap">Projet :</span>
+                <ProjectSelector
+                  projects={projects}
+                  selectedProject={selectedProject}
+                  onProjectChange={setSelectedProject}
+                  placeholder="Sélectionner un projet"
+                  showAllOption={false}
+                  className="w-full sm:w-[200px]"
+                />
+              </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description *</Label>
-                    <Input
-                      id="description"
-                      name="description"
-                      placeholder="Ex: Appartement 1er étage"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="surface">Surface (m²) *</Label>
-                      <Input
-                        id="surface"
-                        name="surface"
-                        type="number"
-                        step="0.01"
-                        placeholder="80"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="prix_total">Prix total (DH) *</Label>
-                      <Input
-                        id="prix_total"
-                        name="prix_total"
-                        type="number"
-                        step="0.01"
-                        placeholder="500000"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="avance_declare">Avance déclarée (DH)</Label>
-                      <Input
-                        id="avance_declare"
-                        name="avance_declare"
-                        type="number"
-                        step="0.01"
-                        placeholder="0"
-                        defaultValue="0"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="avance_non_declare">Avance non déclarée (DH)</Label>
-                      <Input
-                        id="avance_non_declare"
-                        name="avance_non_declare"
-                        type="number"
-                        step="0.01"
-                        placeholder="0"
-                        defaultValue="0"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
-                      Annuler
-                    </Button>
-                    <Button type="submit" className="flex-1 btn-hero" disabled={isSubmitting}>
-                      {isSubmitting ? "Ajout..." : "Ajouter"}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+              {/* Bouton Nouvelle Vente */}
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="btn-secondary-gradient w-full sm:w-auto" disabled={!selectedProject}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouvelle Vente
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                  <NewSaleModal
+                    isOpen={isDialogOpen}
+                    onClose={() => setIsDialogOpen(false)}
+                    selectedProject={projects.find(p => p.id === selectedProject) || null}
+                    onSaleCreated={handleSaleCreated}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Filters */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex gap-4 items-center">
-          <Select value={selectedProject} onValueChange={setSelectedProject}>
-            <SelectTrigger className="w-[300px]">
-              <SelectValue placeholder="Filtrer par projet" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les projets</SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.nom}>
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    {project.nom}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      {/* Contenu principal */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="sales-page">
+        {selectedProject ? (
+          <div className="space-y-8">
+            {/* Section Analytics */}
+            <ProjectAnalyticsComponent
+              projectId={selectedProject}
+              projectName={projects.find(p => p.id === selectedProject)?.nom || ''}
+            />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
-        {filteredSales.length === 0 ? (
-          <Card className="card-premium text-center py-12">
-            <CardContent>
-              <Home className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Aucune vente</h3>
-              <p className="text-muted-foreground mb-6">
-                Commencez par enregistrer vos premières ventes
+            {/* Section Ventes */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold flex items-center">
+                    <Users className="h-5 w-5 sm:h-6 sm:w-6 mr-2" />
+                    Ventes du Projet
+                  </h2>
+                  <p className="text-sm sm:text-base text-muted-foreground">
+                    Liste des ventes et suivi des paiements
+                  </p>
+                </div>
+              </div>
+
+              {/* Composant de filtres et recherche */}
+              <SalesFiltersComponent
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                totalResults={filteredSales.length}
+                isLoading={isLoadingSales}
+              />
+
+              {isLoadingSales ? (
+                <Card className="card-premium text-center py-12">
+                  <CardContent>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p>Chargement des ventes...</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <SalesList
+                  sales={filteredSales}
+                  onAddPayment={(sale) => setSelectedSaleForPayment(sale)}
+                  onViewDetails={(sale) => setSelectedSaleForDetails(sale)}
+                />
+              )}
+            </div>
+          </div>
+        ) : (
+          <Card className="card-premium">
+            <CardContent className="text-center py-12">
+              <Building2 className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">Aucun projet sélectionné</h3>
+              <p className="text-muted-foreground mb-4">
+                Veuillez sélectionner un projet pour voir les ventes et l'inventaire
               </p>
+              <Link to="/projects">
+                <Button className="btn-hero">
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Voir les projets
+                </Button>
+              </Link>
             </CardContent>
           </Card>
-        ) : (
-          <div className="space-y-4">
-            {filteredSales.map((sale) => (
-              <Card key={sale.id} className="card-premium hover-lift">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Home className="h-5 w-5" />
-                        {sale.description}
-                      </CardTitle>
-                      <CardDescription>{sale.projects.nom}</CardDescription>
-                    </div>
-                    <Badge 
-                      variant={sale.type_propriete === 'appartement' ? 'default' : 'secondary'}
-                      className={sale.type_propriete === 'appartement' ? 'badge-success' : 'badge-warning'}
-                    >
-                      {sale.type_propriete.toUpperCase()}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <div className="text-muted-foreground">Surface</div>
-                      <div className="font-semibold">{sale.surface} m²</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">Prix total</div>
-                      <div className="font-semibold text-primary">{sale.prix_total.toLocaleString()} DH</div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-success/5 rounded-lg border border-success/20">
-                      <div className="text-sm text-muted-foreground">Avance déclarée</div>
-                      <div className="text-lg font-bold text-success">
-                        {sale.avance_declare.toLocaleString()} DH
-                      </div>
-                    </div>
-                    <div className="text-center p-4 bg-warning/5 rounded-lg border border-warning/20">
-                      <div className="text-sm text-muted-foreground">Avance non déclarée</div>
-                      <div className="text-lg font-bold text-warning">
-                        {sale.avance_non_declare.toLocaleString()} DH
-                      </div>
-                    </div>
-                    <div className="text-center p-4 bg-primary/5 rounded-lg border border-primary/20">
-                      <div className="text-sm text-muted-foreground">Total avance</div>
-                      <div className="text-lg font-bold text-primary">
-                        {sale.avance_total.toLocaleString()} DH
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Progression du paiement</span>
-                      <span className="font-semibold">{calculateProgress(sale).toFixed(1)}%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div 
-                        className="bg-gradient-primary h-2 rounded-full transition-all duration-300" 
-                        style={{ width: `${Math.min(calculateProgress(sale), 100)}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Reste à payer: {(sale.prix_total - sale.avance_total).toLocaleString()} DH
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
         )}
       </main>
+
+      {/* Modal pour ajouter un paiement */}
+      <Dialog open={!!selectedSaleForPayment} onOpenChange={() => setSelectedSaleForPayment(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {selectedSaleForPayment && (
+            <AddPaymentModal
+              sale={selectedSaleForPayment}
+              onClose={() => setSelectedSaleForPayment(null)}
+              onPaymentAdded={handlePaymentAdded}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal pour voir les détails d'une vente */}
+      <Dialog open={!!selectedSaleForDetails} onOpenChange={() => setSelectedSaleForDetails(null)}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          {selectedSaleForDetails && (
+            <SaleDetailsModal
+              sale={selectedSaleForDetails}
+              onClose={() => setSelectedSaleForDetails(null)}
+              onAddPayment={() => {
+                setSelectedSaleForDetails(null);
+                setSelectedSaleForPayment(selectedSaleForDetails);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

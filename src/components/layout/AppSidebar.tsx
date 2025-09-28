@@ -13,8 +13,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Home,
-  BarChart3,
   Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,12 +26,6 @@ interface SidebarProps {
 }
 
 const navigation = [
-  {
-    name: 'Accueil',
-    href: '/',
-    icon: Home,
-    badge: null,
-  },
   {
     name: 'Dashboard',
     href: '/dashboard',
@@ -68,6 +60,12 @@ const navigation = [
     name: 'Chèques',
     href: '/checks',
     icon: CheckSquare,
+    badge: null,
+  },
+  {
+    name: 'Paramètres',
+    href: '/settings',
+    icon: Settings,
     badge: null,
   },
 ];
@@ -166,28 +164,7 @@ const AppSidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           })}
         </nav>
 
-        <Separator className="my-4 mx-3 bg-sidebar-border/50" />
 
-        {/* Analytics Section */}
-        <div className="px-3">
-          <Link
-            to="/analytics"
-            className={cn(
-              'group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium',
-              'transition-all duration-200 ease-out',
-              'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-              'text-sidebar-foreground/80 hover:text-sidebar-foreground'
-            )}
-          >
-            <BarChart3
-              className={cn(
-                'h-5 w-5 flex-shrink-0',
-                collapsed ? 'mx-auto' : 'mr-3'
-              )}
-            />
-            {!collapsed && <span>Analytics</span>}
-          </Link>
-        </div>
       </div>
 
       {/* Footer */}
@@ -213,19 +190,6 @@ const AppSidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         )}
         
         <div className="space-y-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              'w-full justify-start text-sidebar-foreground/80',
-              'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-              collapsed && 'px-2'
-            )}
-          >
-            <Settings className={cn('h-4 w-4', !collapsed && 'mr-2')} />
-            {!collapsed && 'Paramètres'}
-          </Button>
-          
           <Button
             variant="ghost"
             size="sm"

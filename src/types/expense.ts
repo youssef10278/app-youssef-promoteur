@@ -15,6 +15,8 @@ export interface CheckData {
   statut: 'emis' | 'encaisse' | 'annule';
 }
 
+export type PaymentMode = 'espece' | 'cheque' | 'cheque_espece' | 'virement';
+
 export interface Expense {
   id: string;
   nom: string;
@@ -23,13 +25,24 @@ export interface Expense {
   montant_total: number;
   montant_cheque: number;
   montant_espece: number;
-  mode_paiement: 'espece' | 'cheque' | 'cheque_espece' | 'virement';
+  mode_paiement: PaymentMode;
   description: string;
   created_at: string;
   project_id: string;
   user_id: string;
   projects: { nom: string };
   cheques?: CheckData[];
+}
+
+export interface ExpenseFilters {
+  searchTerm?: string;
+  mode_paiement?: PaymentMode;
+  date_debut?: string;
+  date_fin?: string;
+  montant_min?: number;
+  montant_max?: number;
+  sortBy?: 'created_at' | 'nom' | 'montant_total' | 'montant_declare' | 'montant_non_declare';
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface ExpenseFormData {

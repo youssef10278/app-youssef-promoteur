@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +13,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CreditCard, Plus, ArrowLeft, Building2, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { CheckFilters as CheckFiltersComponent, CheckFiltersState } from '@/components/checks/CheckFilters';
+import { ProjectSelector } from '@/components/common/ProjectSelector';
+import { CheckService, CheckFilters } from '@/services/checkService';
 
 interface Project {
   id: string;
@@ -30,22 +33,45 @@ interface CheckRecord {
   date_encaissement: string;
   facture_recue: boolean;
   description: string;
+  created_at: string;
+  updated_at: string;
   projects?: { nom: string } | null;
+  expenses?: { nom: string; montant_total: number } | null;
+  sales?: { description: string; avance_total: number } | null;
+  // Champs spécifiques aux chèques de paiement
+  payment_plan_id?: string;
+  client_nom?: string;
+  unite_numero?: string;
+  banque?: string;
+  statut?: string;
 }
 
 const Checks = () => {
   const { user, loading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [checks, setChecks] = useState<CheckRecord[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
+  // États pour les filtres
+  const [filters, setFilters] = useState<CheckFiltersState>({
+    searchTerm: '',
+    type_cheque: '',
+    date_debut: null,
+    date_fin: null,
+    montant_min: null,
+    montant_max: null,
+    statut: '',
+    sortBy: 'created_at',
+    sortOrder: 'desc'
+  });
+
   useEffect(() => {
     if (user) {
       fetchProjects();
-      fetchChecks();
     }
   }, [user]);
 
@@ -69,19 +95,52 @@ const Checks = () => {
   };
 
   const fetchChecks = async () => {
+    if (!user?.id) return;
+
+    setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      // Convertir les filtres au format attendu par le service
+      const checkFilters: CheckFilters = {
+        searchTerm: filters.searchTerm || undefined,
+        type_cheque: filters.type_cheque || undefined,
+        date_debut: filters.date_debut?.toISOString().split('T')[0] || undefined,
+        date_fin: filters.date_fin?.toISOString().split('T')[0] || undefined,
+        montant_min: filters.montant_min || undefined,
+        montant_max: filters.montant_max || undefined,
+        statut: filters.statut || undefined,
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder
+      };
+
+      // Récupérer les chèques manuels (table checks) - version simplifiée
+      let manualQuery = supabase
         .from('checks')
         .select(`
           *,
-          projects(nom)
+          projects(nom),
+          expenses(nom, montant_total),
+          sales(description, avance_total)
         `)
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
+        .eq('user_id', user.id);
 
-      if (error) throw error;
-      setChecks(data || []);
+      // Filtrer par projet si spécifié
+      if (selectedProject && selectedProject !== 'all') {
+        manualQuery = manualQuery.eq('project_id', selectedProject);
+      }
+
+      // Tri
+      const sortBy = filters.sortBy || 'created_at';
+      const sortOrder = filters.sortOrder || 'desc';
+      manualQuery = manualQuery.order(sortBy, { ascending: sortOrder === 'asc' });
+
+      const { data: manualChecks, error: manualError } = await manualQuery;
+      if (manualError) throw manualError;
+
+      // Pour l'instant, utilisons seulement les chèques manuels
+      setChecks(manualChecks || []);
+
     } catch (error: any) {
+      console.error('Error fetching checks:', error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les chèques",
@@ -89,6 +148,118 @@ const Checks = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Charger les chèques au montage initial et quand user change
+  useEffect(() => {
+    if (user?.id) {
+      fetchChecks();
+    }
+  }, [user?.id]);
+
+  // Handler pour les changements de filtres
+  const handleFiltersChange = async (newFilters: CheckFiltersState) => {
+    setFilters(newFilters);
+    // Attendre que l'état soit mis à jour puis recharger
+    if (user?.id) {
+      // Ne pas afficher le spinner pour les filtres, juste mettre à jour les données
+      try {
+        // Récupérer les chèques avec les nouveaux filtres
+        let manualQuery = supabase
+          .from('checks')
+          .select(`
+            *,
+            projects(nom),
+            expenses(nom, montant_total),
+            sales(description, avance_total)
+          `)
+          .eq('user_id', user.id);
+
+        // Filtrer par projet si spécifié
+        if (selectedProject && selectedProject !== 'all') {
+          manualQuery = manualQuery.eq('project_id', selectedProject);
+        }
+
+        // Appliquer les filtres de recherche
+        if (newFilters.searchTerm) {
+          const searchTerm = newFilters.searchTerm.toLowerCase();
+          manualQuery = manualQuery.or(`numero_cheque.ilike.%${searchTerm}%,nom_beneficiaire.ilike.%${searchTerm}%,nom_emetteur.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+        }
+
+        if (newFilters.type_cheque) {
+          manualQuery = manualQuery.eq('type_cheque', newFilters.type_cheque);
+        }
+
+        // Tri
+        const sortBy = newFilters.sortBy || 'created_at';
+        const sortOrder = newFilters.sortOrder || 'desc';
+        manualQuery = manualQuery.order(sortBy, { ascending: sortOrder === 'asc' });
+
+        const { data: manualChecks, error: manualError } = await manualQuery;
+        if (manualError) throw manualError;
+
+        setChecks(manualChecks || []);
+      } catch (error: any) {
+        console.error('Error fetching checks:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les chèques",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Handler pour les changements de projet
+  const handleProjectChange = async (projectId: string) => {
+    setSelectedProject(projectId);
+    // Recharger immédiatement avec le nouveau projet
+    if (user?.id) {
+      // Ne pas afficher le spinner pour le changement de projet non plus
+      try {
+        let manualQuery = supabase
+          .from('checks')
+          .select(`
+            *,
+            projects(nom),
+            expenses(nom, montant_total),
+            sales(description, avance_total)
+          `)
+          .eq('user_id', user.id);
+
+        // Filtrer par projet si spécifié
+        if (projectId && projectId !== 'all') {
+          manualQuery = manualQuery.eq('project_id', projectId);
+        }
+
+        // Appliquer les filtres existants
+        if (filters.searchTerm) {
+          const searchTerm = filters.searchTerm.toLowerCase();
+          manualQuery = manualQuery.or(`numero_cheque.ilike.%${searchTerm}%,nom_beneficiaire.ilike.%${searchTerm}%,nom_emetteur.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+        }
+
+        if (filters.type_cheque) {
+          manualQuery = manualQuery.eq('type_cheque', filters.type_cheque);
+        }
+
+        // Tri
+        const sortBy = filters.sortBy || 'created_at';
+        const sortOrder = filters.sortOrder || 'desc';
+        manualQuery = manualQuery.order(sortBy, { ascending: sortOrder === 'asc' });
+
+        const { data: manualChecks, error: manualError } = await manualQuery;
+        if (manualError) throw manualError;
+
+        setChecks(manualChecks || []);
+      } catch (error: any) {
+        console.error('Error fetching checks:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les chèques",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -326,6 +497,27 @@ const Checks = () => {
         </div>
       </header>
 
+      {/* Filters */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex gap-4 items-center mb-6">
+          <ProjectSelector
+            projects={projects}
+            selectedProject={selectedProject}
+            onProjectChange={handleProjectChange}
+            placeholder="Filtrer par projet"
+            showAllOption={true}
+            allOptionLabel="Tous les projets"
+            className="w-[300px]"
+          />
+        </div>
+
+        <CheckFiltersComponent
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+          resultCount={checks.length}
+        />
+      </div>
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="received" className="w-full">
@@ -355,9 +547,23 @@ const Checks = () => {
                           <CardTitle className="text-lg flex items-center gap-2">
                             <CreditCard className="h-5 w-5 text-success" />
                             {check.montant.toLocaleString()} DH
+                            {check.payment_plan_id && (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                Paiement
+                              </Badge>
+                            )}
                           </CardTitle>
                           <CardDescription>
                             {check.projects?.nom || 'Général'} • N° {check.numero_cheque}
+                            {check.sales && (
+                              <span className="text-success"> • Vente: {check.sales.description}</span>
+                            )}
+                            {check.unite_numero && (
+                              <span className="text-primary"> • Unité: {check.unite_numero}</span>
+                            )}
+                            {check.banque && (
+                              <span className="text-muted-foreground"> • {check.banque}</span>
+                            )}
                           </CardDescription>
                         </div>
                         <Badge className="badge-success">
@@ -369,12 +575,38 @@ const Checks = () => {
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <div className="text-muted-foreground">Émetteur</div>
-                          <div className="font-semibold">{check.nom_emetteur || 'Non spécifié'}</div>
+                          <div className="font-semibold">
+                            {check.client_nom || check.nom_emetteur || 'Non spécifié'}
+                          </div>
                         </div>
                         <div>
                           <div className="text-muted-foreground">Date d'émission</div>
-                          <div className="font-semibold">{new Date(check.date_emission).toLocaleDateString('fr-FR')}</div>
+                          <div className="font-semibold">
+                            {check.date_emission ? new Date(check.date_emission).toLocaleDateString('fr-FR') : 'Non spécifiée'}
+                          </div>
                         </div>
+                        {check.statut && (
+                          <div>
+                            <div className="text-muted-foreground">Statut</div>
+                            <div className="font-semibold">
+                              <Badge variant={
+                                check.statut === 'encaisse' ? 'default' :
+                                check.statut === 'rejete' ? 'destructive' :
+                                'secondary'
+                              }>
+                                {check.statut === 'emis' ? 'Émis' :
+                                 check.statut === 'encaisse' ? 'Encaissé' :
+                                 check.statut === 'rejete' ? 'Rejeté' : check.statut}
+                              </Badge>
+                            </div>
+                          </div>
+                        )}
+                        {check.payment_plan_id && (
+                          <div>
+                            <div className="text-muted-foreground">Type</div>
+                            <div className="font-semibold text-blue-600">Chèque de paiement</div>
+                          </div>
+                        )}
                       </div>
                       
                       {check.description && (
@@ -414,6 +646,12 @@ const Checks = () => {
                           </CardTitle>
                           <CardDescription>
                             {check.projects?.nom || 'Général'} • N° {check.numero_cheque}
+                            {check.expenses && (
+                              <span className="text-primary"> • Dépense: {check.expenses.nom}</span>
+                            )}
+                            {check.sales && (
+                              <span className="text-success"> • Vente: {check.sales.description}</span>
+                            )}
                           </CardDescription>
                         </div>
                         <Badge className="badge-warning">

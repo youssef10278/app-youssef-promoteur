@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import AppLayout from '@/components/layout/AppLayout';
+import { PWAStatus } from '@/components/pwa/PWAStatus';
 import {
   Building2,
   TrendingUp,
@@ -43,12 +44,22 @@ const Dashboard = () => {
 
   const fetchProfile = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-    setProfile(data);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+        return;
+      }
+
+      setProfile(data);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
   };
 
   const fetchStats = async () => {
@@ -89,18 +100,7 @@ const Dashboard = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const headerActions = (
-    <div className="flex items-center space-x-3">
-      <Button size="sm" className="btn-premium">
-        <Plus className="h-4 w-4 mr-2" />
-        Nouveau Projet
-      </Button>
-      <Button variant="outline" size="sm">
-        <FileCheck className="h-4 w-4 mr-2" />
-        Rapports
-      </Button>
-    </div>
-  );
+  const headerActions = null;
 
   return (
     <AppLayout
@@ -110,23 +110,23 @@ const Dashboard = () => {
     >
 
       {/* Premium Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
         {/* Total Projects */}
         <Card className="card-premium hover-float">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-foreground-secondary">
+            <CardTitle className="text-sm sm:text-base font-medium text-foreground-secondary">
               Projets Actifs
             </CardTitle>
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Building2 className="h-4 w-4 text-primary" />
+            <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
+              <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground mb-1">
+            <div className="text-2xl sm:text-3xl font-bold text-foreground mb-1">
               {stats.totalProjects}
             </div>
-            <div className="flex items-center space-x-2">
-              <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+              <Badge variant="secondary" className="bg-success/10 text-success border-success/20 w-fit">
                 <ArrowUpRight className="h-3 w-3 mr-1" />
                 +12%
               </Badge>
@@ -138,19 +138,19 @@ const Dashboard = () => {
         {/* Total Revenue */}
         <Card className="card-premium hover-float">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-foreground-secondary">
+            <CardTitle className="text-sm sm:text-base font-medium text-foreground-secondary">
               Chiffre d'Affaires
             </CardTitle>
-            <div className="p-2 bg-success/10 rounded-lg">
-              <DollarSign className="h-4 w-4 text-success" />
+            <div className="p-2 bg-success/10 rounded-lg flex-shrink-0">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground mb-1">
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-1">
               {stats.totalRevenue.toLocaleString()} DH
             </div>
-            <div className="flex items-center space-x-2">
-              <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+              <Badge variant="secondary" className="bg-success/10 text-success border-success/20 w-fit">
                 <ArrowUpRight className="h-3 w-3 mr-1" />
                 +{stats.monthlyGrowth}%
               </Badge>
@@ -162,19 +162,19 @@ const Dashboard = () => {
         {/* Pending Checks */}
         <Card className="card-premium hover-float">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-foreground-secondary">
+            <CardTitle className="text-sm sm:text-base font-medium text-foreground-secondary">
               Chèques en Attente
             </CardTitle>
-            <div className="p-2 bg-warning/10 rounded-lg">
-              <FileCheck className="h-4 w-4 text-warning" />
+            <div className="p-2 bg-warning/10 rounded-lg flex-shrink-0">
+              <FileCheck className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground mb-1">
+            <div className="text-2xl sm:text-3xl font-bold text-foreground mb-1">
               {stats.pendingChecks}
             </div>
-            <div className="flex items-center space-x-2">
-              <Badge variant="secondary" className="bg-warning/10 text-warning border-warning/20">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+              <Badge variant="secondary" className="bg-warning/10 text-warning border-warning/20 w-fit">
                 <Activity className="h-3 w-3 mr-1" />
                 Urgent
               </Badge>
@@ -186,19 +186,19 @@ const Dashboard = () => {
         {/* Completed Sales */}
         <Card className="card-premium hover-float">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-foreground-secondary">
+            <CardTitle className="text-sm sm:text-base font-medium text-foreground-secondary">
               Ventes Finalisées
             </CardTitle>
-            <div className="p-2 bg-secondary/10 rounded-lg">
-              <TrendingUp className="h-4 w-4 text-secondary" />
+            <div className="p-2 bg-secondary/10 rounded-lg flex-shrink-0">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-secondary" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground mb-1">
+            <div className="text-2xl sm:text-3xl font-bold text-foreground mb-1">
               {stats.completedSales}
             </div>
-            <div className="flex items-center space-x-2">
-              <Badge variant="secondary" className="bg-secondary/10 text-secondary border-secondary/20">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+              <Badge variant="secondary" className="bg-secondary/10 text-secondary border-secondary/20 w-fit">
                 <Target className="h-3 w-3 mr-1" />
                 85%
               </Badge>
@@ -209,20 +209,20 @@ const Dashboard = () => {
       </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <Link to="/create-project">
             <Card className="card-premium hover-lift cursor-pointer group">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
-                  <Plus className="h-5 w-5" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors text-base sm:text-lg">
+                  <Plus className="h-5 w-5 flex-shrink-0" />
                   Nouveau Projet
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Créer un nouveau projet immobilier
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Button className="w-full btn-hero">
+              <CardContent className="pt-0">
+                <Button className="w-full btn-hero text-sm sm:text-base">
                   Créer un Projet
                 </Button>
               </CardContent>
@@ -231,17 +231,17 @@ const Dashboard = () => {
 
           <Link to="/expenses">
             <Card className="card-premium hover-lift cursor-pointer group">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
-                  <DollarSign className="h-5 w-5" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors text-base sm:text-lg">
+                  <DollarSign className="h-5 w-5 flex-shrink-0" />
                   Gérer les Dépenses
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Ajouter et suivre les dépenses par projet
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Button className="w-full" variant="outline">
+              <CardContent className="pt-0">
+                <Button className="w-full text-sm sm:text-base" variant="outline">
                   Voir les Dépenses
                 </Button>
               </CardContent>
@@ -250,17 +250,17 @@ const Dashboard = () => {
 
           <Link to="/checks">
             <Card className="card-premium hover-lift cursor-pointer group">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
-                  <FileCheck className="h-5 w-5" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors text-base sm:text-lg">
+                  <FileCheck className="h-5 w-5 flex-shrink-0" />
                   Suivi des Chèques
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Gérer les chèques reçus et donnés
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Button className="w-full" variant="outline">
+              <CardContent className="pt-0">
+                <Button className="w-full text-sm sm:text-base" variant="outline">
                   Voir les Chèques
                 </Button>
               </CardContent>
@@ -269,17 +269,17 @@ const Dashboard = () => {
 
           <Link to="/projects">
             <Card className="card-premium hover-lift cursor-pointer group">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
-                  <Building2 className="h-5 w-5" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors text-base sm:text-lg">
+                  <Building2 className="h-5 w-5 flex-shrink-0" />
                   Mes Projets
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Voir et gérer tous vos projets
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Button className="w-full" variant="outline">
+              <CardContent className="pt-0">
+                <Button className="w-full text-sm sm:text-base" variant="outline">
                   Voir les Projets
                 </Button>
               </CardContent>
@@ -288,34 +288,24 @@ const Dashboard = () => {
 
           <Link to="/sales">
             <Card className="card-premium hover-lift cursor-pointer group">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
-                  <TrendingUp className="h-5 w-5" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors text-base sm:text-lg">
+                  <TrendingUp className="h-5 w-5 flex-shrink-0" />
                   Gestion des Ventes
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Suivre les ventes et avances reçues
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Button className="w-full" variant="outline">
+              <CardContent className="pt-0">
+                <Button className="w-full text-sm sm:text-base" variant="outline">
                   Voir les Ventes
                 </Button>
               </CardContent>
             </Card>
           </Link>
 
-          <Card className="card-premium hover-lift cursor-pointer group border-dashed border-2 border-border hover:border-primary/50 transition-colors">
-            <CardHeader className="text-center">
-              <CardTitle className="flex items-center justify-center gap-2 group-hover:text-primary transition-colors text-foreground-secondary">
-                <Plus className="h-5 w-5" />
-                Plus d'outils
-              </CardTitle>
-              <CardDescription>
-                Découvrir d'autres fonctionnalités premium
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <PWAStatus />
         </div>
     </AppLayout>
   );

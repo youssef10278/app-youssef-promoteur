@@ -7,19 +7,202 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
-  }
   public: {
     Tables: {
+      sales: {
+        Row: {
+          avance_cheque: number
+          avance_declare: number
+          avance_espece: number
+          avance_non_declare: number
+          avance_total: number
+          client_adresse: string | null
+          client_email: string | null
+          client_nom: string
+          client_telephone: string | null
+          created_at: string
+          description: string
+          id: string
+          mode_paiement: Database["public"]["Enums"]["payment_mode"]
+          prix_total: number
+          project_id: string
+          statut: Database["public"]["Enums"]["sale_status"]
+          surface: number
+          type_propriete: Database["public"]["Enums"]["property_type"]
+          unite_disponible: boolean | null
+          unite_numero: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avance_cheque?: number
+          avance_declare?: number
+          avance_espece?: number
+          avance_non_declare?: number
+          avance_total?: number
+          client_adresse?: string | null
+          client_email?: string | null
+          client_nom: string
+          client_telephone?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          mode_paiement?: Database["public"]["Enums"]["payment_mode"]
+          prix_total: number
+          project_id: string
+          statut?: Database["public"]["Enums"]["sale_status"]
+          surface: number
+          type_propriete: Database["public"]["Enums"]["property_type"]
+          unite_disponible?: boolean | null
+          unite_numero: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avance_cheque?: number
+          avance_declare?: number
+          avance_espece?: number
+          avance_non_declare?: number
+          avance_total?: number
+          client_adresse?: string | null
+          client_email?: string | null
+          client_nom?: string
+          client_telephone?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          mode_paiement?: Database["public"]["Enums"]["payment_mode"]
+          prix_total?: number
+          project_id?: string
+          statut?: Database["public"]["Enums"]["sale_status"]
+          surface?: number
+          type_propriete?: Database["public"]["Enums"]["property_type"]
+          unite_disponible?: boolean | null
+          unite_numero?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          localisation: string | null
+          nom: string
+          nombre_appartements: number | null
+          nombre_garages: number | null
+          nombre_lots: number | null
+          prix_m2: number | null
+          societe: string
+          surface_totale: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          localisation?: string | null
+          nom: string
+          nombre_appartements?: number | null
+          nombre_garages?: number | null
+          nombre_lots?: number | null
+          prix_m2?: number | null
+          societe: string
+          surface_totale?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          localisation?: string | null
+          nom?: string
+          nombre_appartements?: number | null
+          nombre_garages?: number | null
+          nombre_lots?: number | null
+          prix_m2?: number | null
+          societe?: string
+          surface_totale?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          mode_paiement: Database["public"]["Enums"]["payment_mode"]
+          montant_cheque: number
+          montant_declare: number
+          montant_espece: number
+          montant_non_declare: number
+          montant_total: number
+          nom: string
+          project_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          mode_paiement?: Database["public"]["Enums"]["payment_mode"]
+          montant_cheque?: number
+          montant_declare?: number
+          montant_espece?: number
+          montant_non_declare?: number
+          montant_total?: number
+          nom: string
+          project_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          mode_paiement?: Database["public"]["Enums"]["payment_mode"]
+          montant_cheque?: number
+          montant_declare?: number
+          montant_espece?: number
+          montant_non_declare?: number
+          montant_total?: number
+          nom?: string
+          project_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checks: {
         Row: {
           created_at: string
           date_emission: string
           date_encaissement: string | null
           description: string | null
+          expense_id: string | null
           facture_recue: boolean
           id: string
           montant: number
@@ -27,6 +210,8 @@ export type Database = {
           nom_emetteur: string | null
           numero_cheque: string | null
           project_id: string | null
+          sale_id: string | null
+          statut: Database["public"]["Enums"]["check_status"]
           type_cheque: Database["public"]["Enums"]["check_type"]
           updated_at: string
           user_id: string
@@ -36,6 +221,7 @@ export type Database = {
           date_emission: string
           date_encaissement?: string | null
           description?: string | null
+          expense_id?: string | null
           facture_recue?: boolean
           id?: string
           montant: number
@@ -43,6 +229,8 @@ export type Database = {
           nom_emetteur?: string | null
           numero_cheque?: string | null
           project_id?: string | null
+          sale_id?: string | null
+          statut?: Database["public"]["Enums"]["check_status"]
           type_cheque: Database["public"]["Enums"]["check_type"]
           updated_at?: string
           user_id: string
@@ -52,6 +240,7 @@ export type Database = {
           date_emission?: string
           date_encaissement?: string | null
           description?: string | null
+          expense_id?: string | null
           facture_recue?: boolean
           id?: string
           montant?: number
@@ -59,11 +248,20 @@ export type Database = {
           nom_emetteur?: string | null
           numero_cheque?: string | null
           project_id?: string | null
+          sale_id?: string | null
+          statut?: Database["public"]["Enums"]["check_status"]
           type_cheque?: Database["public"]["Enums"]["check_type"]
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "checks_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "checks_project_id_fkey"
             columns: ["project_id"]
@@ -71,54 +269,129 @@ export type Database = {
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "checks_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
         ]
       }
-      expenses: {
+      payment_plans: {
         Row: {
           created_at: string
+          date_paiement: string | null
+          date_prevue: string
           description: string | null
           id: string
-          montant_cheque: number
-          montant_declare: number
-          montant_espece: number
-          montant_non_declare: number
-          montant_total: number | null
-          nom: string
-          project_id: string
+          mode_paiement: Database["public"]["Enums"]["payment_mode"] | null
+          montant_cheque: number | null
+          montant_espece: number | null
+          montant_paye: number
+          montant_prevu: number
+          notes: string | null
+          numero_echeance: number
+          sale_id: string
+          statut: Database["public"]["Enums"]["payment_plan_status"]
           updated_at: string
+          user_id: string
         }
         Insert: {
           created_at?: string
+          date_paiement?: string | null
+          date_prevue: string
           description?: string | null
           id?: string
-          montant_cheque?: number
-          montant_declare?: number
-          montant_espece?: number
-          montant_non_declare?: number
-          montant_total?: number | null
-          nom: string
-          project_id: string
+          mode_paiement?: Database["public"]["Enums"]["payment_mode"] | null
+          montant_cheque?: number | null
+          montant_espece?: number | null
+          montant_paye?: number
+          montant_prevu: number
+          notes?: string | null
+          numero_echeance: number
+          sale_id: string
+          statut?: Database["public"]["Enums"]["payment_plan_status"]
           updated_at?: string
+          user_id: string
         }
         Update: {
           created_at?: string
+          date_paiement?: string | null
+          date_prevue?: string
           description?: string | null
           id?: string
-          montant_cheque?: number
-          montant_declare?: number
-          montant_espece?: number
-          montant_non_declare?: number
-          montant_total?: number | null
-          nom?: string
-          project_id?: string
+          mode_paiement?: Database["public"]["Enums"]["payment_mode"] | null
+          montant_cheque?: number | null
+          montant_espece?: number | null
+          montant_paye?: number
+          montant_prevu?: number
+          notes?: string | null
+          numero_echeance?: number
+          sale_id?: string
+          statut?: Database["public"]["Enums"]["payment_plan_status"]
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "expenses_project_id_fkey"
-            columns: ["project_id"]
+            foreignKeyName: "payment_plans_sale_id_fkey"
+            columns: ["sale_id"]
             isOneToOne: false
-            referencedRelation: "projects"
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_checks: {
+        Row: {
+          banque: string | null
+          created_at: string
+          date_emission: string | null
+          date_encaissement: string | null
+          id: string
+          montant: number
+          notes: string | null
+          numero_cheque: string
+          payment_plan_id: string
+          statut: Database["public"]["Enums"]["check_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          banque?: string | null
+          created_at?: string
+          date_emission?: string | null
+          date_encaissement?: string | null
+          id?: string
+          montant: number
+          notes?: string | null
+          numero_cheque: string
+          payment_plan_id: string
+          statut?: Database["public"]["Enums"]["check_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          banque?: string | null
+          created_at?: string
+          date_emission?: string | null
+          date_encaissement?: string | null
+          id?: string
+          montant?: number
+          notes?: string | null
+          numero_cheque?: string
+          payment_plan_id?: string
+          statut?: Database["public"]["Enums"]["check_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_checks_payment_plan_id_fkey"
+            columns: ["payment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "payment_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -156,104 +429,6 @@ export type Database = {
         }
         Relationships: []
       }
-      projects: {
-        Row: {
-          created_at: string
-          id: string
-          localisation: string
-          nom: string
-          nombre_appartements: number
-          nombre_garages: number
-          nombre_lots: number
-          societe: string
-          surface_totale: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          localisation: string
-          nom: string
-          nombre_appartements?: number
-          nombre_garages?: number
-          nombre_lots: number
-          societe: string
-          surface_totale: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          localisation?: string
-          nom?: string
-          nombre_appartements?: number
-          nombre_garages?: number
-          nombre_lots?: number
-          societe?: string
-          surface_totale?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      sales: {
-        Row: {
-          avance_cheque: number
-          avance_declare: number
-          avance_espece: number
-          avance_non_declare: number
-          avance_total: number | null
-          created_at: string
-          description: string
-          id: string
-          prix_total: number
-          project_id: string
-          surface: number
-          type_propriete: Database["public"]["Enums"]["property_type"]
-          updated_at: string
-        }
-        Insert: {
-          avance_cheque?: number
-          avance_declare?: number
-          avance_espece?: number
-          avance_non_declare?: number
-          avance_total?: number | null
-          created_at?: string
-          description: string
-          id?: string
-          prix_total: number
-          project_id: string
-          surface: number
-          type_propriete: Database["public"]["Enums"]["property_type"]
-          updated_at?: string
-        }
-        Update: {
-          avance_cheque?: number
-          avance_declare?: number
-          avance_espece?: number
-          avance_non_declare?: number
-          avance_total?: number | null
-          created_at?: string
-          description?: string
-          id?: string
-          prix_total?: number
-          project_id?: string
-          surface?: number
-          type_propriete?: Database["public"]["Enums"]["property_type"]
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sales_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
@@ -262,14 +437,16 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      check_status: "emis" | "encaisse" | "annule"
       check_type: "recu" | "donne"
       payment_method: "cheque" | "espece" | "cheque_et_espece"
+      payment_mode: "espece" | "cheque" | "cheque_espece" | "virement"
+      payment_plan_status: "planifie" | "recu" | "en_retard" | "annule"
+      payment_status: "recu" | "encaisse" | "rejete"
       property_type:
         | "appartement"
         | "garage"
-        | "villa"
-        | "terrain"
-        | "local_commercial"
+      sale_status: "en_cours" | "termine" | "annule"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -277,33 +454,27 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type PublicSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  PublicTableNameOrOptions extends
+    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
+        PublicSchema["Views"])
+    ? (PublicSchema["Tables"] &
+        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -311,24 +482,20 @@ export type Tables<
     : never
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -336,24 +503,20 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -361,51 +524,14 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+  PublicEnumNameOrOptions extends
+    | keyof PublicSchema["Enums"]
+    | { schema: keyof Database },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
+    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {
-      check_type: ["recu", "donne"],
-      payment_method: ["cheque", "espece", "cheque_et_espece"],
-      property_type: [
-        "appartement",
-        "garage",
-        "villa",
-        "terrain",
-        "local_commercial",
-      ],
-    },
-  },
-} as const

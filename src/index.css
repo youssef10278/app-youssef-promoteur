@@ -242,6 +242,19 @@ All colors MUST be HSL for consistency and theming support.
            before:pointer-events-none;
   }
 
+  /* Auth page responsive improvements */
+  @media (max-width: 640px) {
+    .card-premium {
+      @apply mx-4 shadow-xl;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .bg-gradient-hero {
+      @apply min-h-screen flex flex-col;
+    }
+  }
+
   .card-glass {
     @apply relative backdrop-blur-xl bg-white/60 dark:bg-black/20
            border border-white/20 dark:border-white/10 rounded-xl

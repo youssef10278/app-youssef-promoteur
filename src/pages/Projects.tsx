@@ -1,48 +1,39 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Building2, MapPin, Plus, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { Building2, Plus, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-interface Project {
-  id: string;
-  nom: string;
-  localisation: string;
-  societe: string;
-  surface_totale: number;
-  nombre_lots: number;
-  nombre_appartements: number;
-  nombre_garages: number;
-  created_at: string;
-}
+import { ProjectService, Project, ProjectFilters } from '@/services/projectService';
+import { ProjectFiltersComponent, ProjectFiltersState } from '@/components/projects/ProjectFilters';
+import { ProjectList } from '@/components/projects/ProjectList';
+import { ProjectStats } from '@/components/projects/ProjectStats';
 
 const Projects = () => {
   const { user, loading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [filters, setFilters] = useState<ProjectFiltersState>({
+    searchTerm: '',
+    sortBy: 'date',
+    sortOrder: 'desc',
+    minSurface: undefined,
+    maxSurface: undefined,
+    minLots: undefined,
+    maxLots: undefined,
+  });
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (user) {
-      fetchProjects();
-    }
-  }, [user]);
-
-  const fetchProjects = async () => {
+  // Charger les projets avec filtres
+  const loadProjects = useCallback(async (currentFilters: ProjectFilters) => {
     try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setProjects(data || []);
+      setIsLoading(true);
+      const data = await ProjectService.getFilteredProjects(currentFilters);
+      setFilteredProjects(data);
     } catch (error: any) {
+      console.error('Erreur lors du chargement des projets:', error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les projets",
@@ -51,31 +42,53 @@ const Projects = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const deleteProject = async (projectId: string) => {
+  // Charger les projets au montage et quand les filtres changent
+  useEffect(() => {
+    if (user) {
+      loadProjects(filters);
+    }
+  }, [user, filters, loadProjects]);
+
+  // Gestionnaire de changement de filtres
+  const handleFiltersChange = useCallback((newFilters: ProjectFiltersState) => {
+    setFilters(newFilters);
+  }, []);
+
+  // Supprimer un projet
+  const handleDeleteProject = async (projectId: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) return;
 
     try {
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', projectId);
+      await ProjectService.deleteProject(projectId);
 
-      if (error) throw error;
+      // Recharger les projets et les stats
+      loadProjects(filters);
+      setRefreshTrigger(prev => prev + 1);
 
-      setProjects(projects.filter(p => p.id !== projectId));
       toast({
         title: "Succès",
         description: "Projet supprimé avec succès",
       });
     } catch (error: any) {
+      console.error('Erreur lors de la suppression:', error);
       toast({
         title: "Erreur",
         description: "Impossible de supprimer le projet",
         variant: "destructive",
       });
     }
+  };
+
+  // Éditer un projet (placeholder pour future fonctionnalité)
+  const handleEditProject = (project: Project) => {
+    // TODO: Implémenter la modal d'édition
+    console.log('Éditer le projet:', project);
+    toast({
+      title: "Fonctionnalité à venir",
+      description: "L'édition des projets sera bientôt disponible",
+    });
   };
 
   if (loading || isLoading) {
@@ -120,9 +133,29 @@ const Projects = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {projects.length === 0 ? (
-          <Card className="card-premium text-center py-12">
-            <CardContent>
+        <div className="space-y-8">
+          {/* Section Statistiques */}
+          <ProjectStats refreshTrigger={refreshTrigger} />
+
+          {/* Section Filtres */}
+          <ProjectFiltersComponent
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            totalResults={filteredProjects.length}
+            isLoading={isLoading}
+          />
+
+          {/* Section Liste des Projets */}
+          <ProjectList
+            projects={filteredProjects}
+            isLoading={isLoading}
+            onEdit={handleEditProject}
+            onDelete={handleDeleteProject}
+          />
+
+          {/* Message si aucun projet */}
+          {!isLoading && filteredProjects.length === 0 && filters.searchTerm === '' && (
+            <div className="text-center py-12">
               <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">Aucun projet</h3>
               <p className="text-muted-foreground mb-6">
@@ -134,76 +167,9 @@ const Projects = () => {
                   Créer un Projet
                 </Button>
               </Link>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <Card key={project.id} className="card-premium hover-lift">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg mb-1">{project.nom}</CardTitle>
-                      <CardDescription className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {project.localisation}
-                      </CardDescription>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                        onClick={() => deleteProject(project.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-sm text-muted-foreground">
-                    <strong>Société:</strong> {project.societe}
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <div className="text-muted-foreground">Surface totale</div>
-                      <div className="font-semibold">{project.surface_totale.toLocaleString()} m²</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">Nombre de lots</div>
-                      <div className="font-semibold">{project.nombre_lots}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Badge variant="secondary" className="badge-success">
-                      {project.nombre_appartements} Appts
-                    </Badge>
-                    <Badge variant="secondary" className="badge-warning">
-                      {project.nombre_garages} Garages
-                    </Badge>
-                  </div>
-
-                  <div className="pt-4 border-t">
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="flex-1">
-                        Dépenses
-                      </Button>
-                      <Button size="sm" variant="outline" className="flex-1">
-                        Ventes
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );
