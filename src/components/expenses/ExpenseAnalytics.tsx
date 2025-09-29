@@ -45,73 +45,13 @@ export const ExpenseAnalyticsComponent: React.FC<ExpenseAnalyticsProps> = ({
         setLoading(true);
         let data: ExpenseAnalytics;
         
-        // Toujours récupérer toutes les analytics et filtrer côté client si nécessaire
-        data = await ExpenseAnalyticsService.getAllExpenseAnalytics();
-
-        // Si un projet spécifique est sélectionné, on filtre les données
+        // Utiliser la route appropriée selon le contexte
         if (projectId && !showAllProjects) {
-          // Filtrer les données pour le projet spécifique
-          const filteredData = {
-            ...data,
-            par_projet: data.par_projet.filter(p => p.project_id === projectId)
-          };
-
-          // Recalculer les totaux pour le projet spécifique
-          const projectData = data.par_projet.find(p => p.project_id === projectId);
-          if (projectData) {
-            filteredData.total_depenses = projectData.nombre_depenses;
-            filteredData.montant_total_depenses = projectData.montant_total;
-            filteredData.montant_declare_total = projectData.montant_declare;
-            filteredData.montant_non_declare_total = projectData.montant_non_declare;
-
-            // Recalculer les pourcentages
-            const total = filteredData.montant_declare_total + filteredData.montant_non_declare_total;
-            filteredData.pourcentage_declare = total > 0
-              ? Math.round((filteredData.montant_declare_total / total) * 100 * 100) / 100
-              : 0;
-            filteredData.pourcentage_non_declare = total > 0
-              ? Math.round((filteredData.montant_non_declare_total / total) * 100 * 100) / 100
-              : 0;
-
-            // Recalculer la moyenne par dépense
-            filteredData.montant_moyen_par_depense = filteredData.total_depenses > 0
-              ? Math.round((filteredData.montant_total_depenses / filteredData.total_depenses) * 100) / 100
-              : 0;
-
-            // Réinitialiser les modes de paiement et statistiques temporelles
-            filteredData.modes_paiement = {
-              espece: { nombre: 0, montant: 0, pourcentage: 0 },
-              cheque: { nombre: 0, montant: 0, pourcentage: 0 },
-              cheque_espece: { nombre: 0, montant: 0, pourcentage: 0 },
-              virement: { nombre: 0, montant: 0, pourcentage: 0 }
-            };
-            filteredData.depenses_ce_mois = 0;
-            filteredData.montant_ce_mois = 0;
-            filteredData.depenses_cette_annee = 0;
-            filteredData.montant_cette_annee = 0;
-          } else {
-            // Aucune dépense pour ce projet - tout à zéro
-            filteredData.total_depenses = 0;
-            filteredData.montant_total_depenses = 0;
-            filteredData.montant_declare_total = 0;
-            filteredData.montant_non_declare_total = 0;
-            filteredData.pourcentage_declare = 0;
-            filteredData.pourcentage_non_declare = 0;
-            filteredData.montant_moyen_par_depense = 0;
-            filteredData.montant_moyen_par_projet = 0;
-            filteredData.modes_paiement = {
-              espece: { nombre: 0, montant: 0, pourcentage: 0 },
-              cheque: { nombre: 0, montant: 0, pourcentage: 0 },
-              cheque_espece: { nombre: 0, montant: 0, pourcentage: 0 },
-              virement: { nombre: 0, montant: 0, pourcentage: 0 }
-            };
-            filteredData.depenses_ce_mois = 0;
-            filteredData.montant_ce_mois = 0;
-            filteredData.depenses_cette_annee = 0;
-            filteredData.montant_cette_annee = 0;
-          }
-
-          data = filteredData;
+          // Récupérer les analytics pour un projet spécifique
+          data = await ExpenseAnalyticsService.getProjectExpenseAnalytics(projectId);
+        } else {
+          // Récupérer toutes les analytics
+          data = await ExpenseAnalyticsService.getAllExpenseAnalytics();
         }
         
         setAnalytics(data);

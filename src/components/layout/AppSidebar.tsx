@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   Building2,
@@ -72,13 +72,25 @@ const navigation = [
 
 const AppSidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation();
-  const { signOut, profile } = useAuth();
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
 
   const isActive = (href: string) => {
     if (href === '/') {
       return location.pathname === '/';
     }
     return location.pathname.startsWith(href);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/auth', { replace: true });
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      // Même en cas d'erreur, rediriger vers la page de connexion
+      navigate('/auth', { replace: true });
+    }
   };
 
   return (
@@ -169,17 +181,17 @@ const AppSidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
       {/* Footer */}
       <div className="border-t border-sidebar-border/50 p-4">
-        {!collapsed && profile && (
+        {!collapsed && user && (
           <div className="mb-3 p-3 rounded-lg bg-sidebar-accent/50">
             <div className="flex items-center space-x-3">
               <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
                 <span className="text-sm font-medium text-primary">
-                  {profile.nom?.charAt(0) || 'U'}
+                  {user.nom?.charAt(0) || 'U'}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-sidebar-foreground truncate">
-                  {profile.nom || 'Utilisateur'}
+                  {user.nom || 'Utilisateur'}
                 </p>
                 <p className="text-xs text-sidebar-foreground/60 truncate">
                   Promoteur
@@ -193,7 +205,7 @@ const AppSidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={signOut}
+            onClick={handleLogout}
             className={cn(
               'w-full justify-start text-sidebar-foreground/80',
               'hover:bg-destructive/10 hover:text-destructive',

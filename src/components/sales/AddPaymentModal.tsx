@@ -21,8 +21,9 @@ import {
 } from 'lucide-react';
 import { Sale, PaymentFormData } from '@/types/sale-new';
 import { formatAmount } from '@/utils/payments';
-import { SalesService } from '@/services/salesService';
+import { SalesServiceNew as SalesService } from '@/services/salesServiceNew';
 import { useToast } from '@/hooks/use-toast';
+import { calculateUnifiedPaymentTotals } from '@/utils/paymentHistory';
 
 interface AddPaymentModalProps {
   sale: Sale;
@@ -62,10 +63,9 @@ export function AddPaymentModal({ sale, onClose, onPaymentAdded }: AddPaymentMod
     cheques: []
   });
 
-  // Calculer le montant déjà payé et restant
-  const totalPaid = sale.payment_plans?.reduce((sum, plan) => sum + (plan.montant_paye || 0), 0) || 0;
-  const remainingAmount = sale.prix_total - totalPaid;
-  const progressPercentage = sale.prix_total > 0 ? (totalPaid / sale.prix_total) * 100 : 0;
+  // Calculer le montant déjà payé et restant - REFONTE: Utiliser la logique unifiée
+  const paymentTotals = calculateUnifiedPaymentTotals(sale, sale.payment_plans);
+  const { totalPaid, remainingAmount, percentage: progressPercentage } = paymentTotals;
 
   const handleModeChange = (mode: PaymentFormData['mode_paiement']) => {
     const newData = { ...formData, mode_paiement: mode };
@@ -261,11 +261,11 @@ export function AddPaymentModal({ sale, onClose, onPaymentAdded }: AddPaymentMod
               </div>
               <div>
                 <span className="text-muted-foreground">Prix total:</span>
-                <p className="font-medium">{formatAmount(sale.prix_total)} DH</p>
+                <p className="font-medium">{formatAmount(sale.prix_total)}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Déjà payé:</span>
-                <p className="font-medium text-green-600">{formatAmount(totalPaid)} DH</p>
+                <p className="font-medium text-green-600">{formatAmount(totalPaid)}</p>
               </div>
             </div>
             
@@ -285,7 +285,7 @@ export function AddPaymentModal({ sale, onClose, onPaymentAdded }: AddPaymentMod
             <div className="pt-2 border-t">
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Montant restant</span>
-                <span className="font-medium text-blue-600">{formatAmount(remainingAmount)} DH</span>
+                <span className="font-medium text-blue-600">{formatAmount(remainingAmount)}</span>
               </div>
             </div>
           </CardContent>

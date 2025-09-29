@@ -1,0 +1,168 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
+
+import { pool, closePool, query } from './config/database';
+import { errorHandler } from './middleware/errorHandler';
+import { notFound } from './middleware/notFound';
+
+// Import des routes
+import authRoutes from './routes/auth';
+import projectRoutes from './routes/projects';
+import salesRoutes from './routes/sales';
+import expenseRoutes from './routes/expenses';
+import checkRoutes from './routes/checks';
+import paymentRoutes from './routes/payments';
+import companySettingsRoutes from './routes/companySettings';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Configuration CORS
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || 'http://localhost:8080',
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+// Rate limiting - Plus permissif pour le développement
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'), // 1 minute
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000'), // 1000 requêtes par minute
+  message: {
+    error: 'Trop de requêtes, veuillez réessayer plus tard.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Skip rate limiting pour les requêtes de développement
+  skip: (req) => {
+    // Skip pour localhost en développement
+    return process.env.NODE_ENV === 'development' && 
+           (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1');
+  }
+});
+
+// Middlewares globaux
+app.use(helmet());
+app.use(cors(corsOptions));
+app.use(compression());
+app.use(morgan('combined'));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(limiter);
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+
+// Route de debug temporaire SANS authentification
+app.get('/api/debug-data', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG DATA - Début');
+
+    const expensesResult = await query(
+      `SELECT e.id, e.nom, e.project_id, e.user_id, e.montant_declare, e.montant_non_declare, p.nom as project_nom
+       FROM expenses e
+       LEFT JOIN projects p ON e.project_id = p.id
+       ORDER BY e.created_at DESC`
+    );
+
+    const projectsResult = await query(
+      `SELECT id, nom, user_id FROM projects ORDER BY created_at DESC`
+    );
+
+    const salesResult = await query(
+      `SELECT s.*, p.nom as project_nom
+       FROM sales s
+       LEFT JOIN projects p ON s.project_id = p.id
+       ORDER BY s.created_at DESC`
+    );
+
+    const paymentPlansResult = await query(
+      `SELECT pp.*, s.client_nom, s.unite_numero, p.nom as project_nom
+       FROM payment_plans pp
+       LEFT JOIN sales s ON pp.sale_id = s.id
+       LEFT JOIN projects p ON s.project_id = p.id
+       ORDER BY pp.created_at DESC`
+    );
+
+    console.log('🔍 DEBUG - Toutes les dépenses:', expensesResult.rows);
+    console.log('🔍 DEBUG - Tous les projets:', projectsResult.rows);
+    console.log('🔍 DEBUG - Toutes les ventes:', salesResult.rows);
+    console.log('🔍 DEBUG - Tous les plans de paiement:', paymentPlansResult.rows);
+
+    res.json({
+      success: true,
+      data: {
+        expenses: expensesResult.rows,
+        projects: projectsResult.rows,
+        sales: salesResult.rows,
+        payment_plans: paymentPlansResult.rows
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erreur debug:', error);
+    res.status(500).json({ error: 'Erreur debug' });
+  }
+});
+
+// Routes API
+app.use('/api/auth', authRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/sales', salesRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/checks', checkRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/company-settings', companySettingsRoutes);
+
+// Route de base
+app.get('/', (req, res) => {
+  res.json({
+    message: 'API Promoteur Immobilier Pro',
+    version: '1.0.0',
+    documentation: '/api/docs'
+  });
+});
+
+// Middlewares d'erreur (doivent être en dernier)
+app.use(notFound);
+app.use(errorHandler);
+
+// Démarrage du serveur
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Serveur démarré sur le port ${PORT}`);
+  console.log(`🌍 Environnement: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📡 CORS autorisé pour: ${process.env.CORS_ORIGIN || 'http://localhost:8080'}`);
+});
+
+// Gestion propre de l'arrêt du serveur
+process.on('SIGTERM', async () => {
+  console.log('🛑 Signal SIGTERM reçu, arrêt du serveur...');
+  server.close(async () => {
+    await closePool();
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', async () => {
+  console.log('🛑 Signal SIGINT reçu, arrêt du serveur...');
+  server.close(async () => {
+    await closePool();
+    process.exit(0);
+  });
+});
+
+export default app;

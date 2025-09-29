@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/integrations/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,18 +10,17 @@ import { Building2, ArrowLeft, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const CreateProject = () => {
-  const { user, loading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
     const projectData = {
-      user_id: user?.id,
       nom: formData.get('nom') as string,
       localisation: formData.get('localisation') as string,
       societe: formData.get('societe') as string,
@@ -32,11 +31,9 @@ const CreateProject = () => {
     };
 
     try {
-      const { error } = await supabase
-        .from('projects')
-        .insert([projectData]);
-
-      if (error) throw error;
+      console.log('📤 Envoi des données projet:', projectData);
+      const response = await apiClient.post('/projects', projectData);
+      console.log('✅ Réponse backend:', response);
 
       toast({
         title: "Succès",
@@ -45,17 +42,26 @@ const CreateProject = () => {
 
       navigate('/projects');
     } catch (error: any) {
+      console.error('❌ Erreur création projet:', error);
+      console.error('📋 Détails erreur:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+
+      const errorMessage = error.response?.data?.message || error.message || "Erreur inconnue";
+
       toast({
         title: "Erreur",
-        description: "Impossible de créer le projet",
+        description: `Impossible de créer le projet: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  if (loading) {
+  if (authLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
     </div>;
@@ -186,9 +192,9 @@ const CreateProject = () => {
                     Annuler
                   </Button>
                 </Link>
-                <Button type="submit" className="flex-1 btn-hero" disabled={isLoading}>
+                <Button type="submit" className="flex-1 btn-hero" disabled={isSubmitting}>
                   <Save className="h-4 w-4 mr-2" />
-                  {isLoading ? "Création..." : "Créer le Projet"}
+                  {isSubmitting ? "Création..." : "Créer le Projet"}
                 </Button>
               </div>
             </form>

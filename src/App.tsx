@@ -9,6 +9,7 @@ import { PWAUpdatePrompt } from "@/components/pwa/PWAUpdatePrompt";
 import Auth from "./pages/Auth";
 import Register from "./pages/Register";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RequireAuth from "./components/RequireAuth";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import CreateProject from "./pages/CreateProject";
@@ -38,13 +39,13 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/abc" element={<Register />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/create-project" element={<CreateProject />} />
-              <Route path="/expenses" element={<Expenses />} />
-              <Route path="/sales" element={<Sales />} />
-              <Route path="/checks" element={<Checks />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+              <Route path="/projects" element={<RequireAuth><Projects /></RequireAuth>} />
+              <Route path="/create-project" element={<RequireAuth><CreateProject /></RequireAuth>} />
+              <Route path="/expenses" element={<RequireAuth><Expenses /></RequireAuth>} />
+              <Route path="/sales" element={<RequireAuth><Sales /></RequireAuth>} />
+              <Route path="/checks" element={<RequireAuth><Checks /></RequireAuth>} />
+              <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

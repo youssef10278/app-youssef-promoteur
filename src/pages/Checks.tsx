@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/integrations/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,39 +15,23 @@ import { CreditCard, Plus, ArrowLeft, Building2, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CheckFilters as CheckFiltersComponent, CheckFiltersState } from '@/components/checks/CheckFilters';
 import { ProjectSelector } from '@/components/common/ProjectSelector';
-import { CheckService, CheckFilters } from '@/services/checkService';
+import { CheckService, CheckFilters, Check as CheckType } from '@/services/checkService';
+import { eventBus, EVENTS } from '@/utils/eventBus';
 
 interface Project {
   id: string;
   nom: string;
 }
 
-interface CheckRecord {
-  id: string;
-  type_cheque: string;
-  montant: number;
-  numero_cheque: string;
-  nom_beneficiaire: string;
-  nom_emetteur: string;
-  date_emission: string;
-  date_encaissement: string;
-  facture_recue: boolean;
-  description: string;
-  created_at: string;
-  updated_at: string;
-  projects?: { nom: string } | null;
-  expenses?: { nom: string; montant_total: number } | null;
-  sales?: { description: string; avance_total: number } | null;
-  // Champs spécifiques aux chèques de paiement
+interface CheckRecord extends CheckType {
+  // Champs spécifiques aux chèques de paiement (pour compatibilité)
   payment_plan_id?: string;
-  client_nom?: string;
   unite_numero?: string;
   banque?: string;
-  statut?: string;
 }
 
 const Checks = () => {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [checks, setChecks] = useState<CheckRecord[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('all');
@@ -77,15 +61,18 @@ const Checks = () => {
 
   const fetchProjects = async () => {
     try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('id, nom')
-        .eq('user_id', user?.id)
-        .order('nom');
+      const response = await apiClient.get('/projects');
+      const projects = response.data || [];
 
-      if (error) throw error;
-      setProjects(data || []);
+      // Mapper les données pour correspondre au format attendu
+      const mappedProjects = projects.map((project: any) => ({
+        id: project.id,
+        nom: project.nom
+      }));
+
+      setProjects(mappedProjects);
     } catch (error: any) {
+      console.error('Erreur lors du chargement des projets:', error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les projets",
@@ -112,32 +99,15 @@ const Checks = () => {
         sortOrder: filters.sortOrder
       };
 
-      // Récupérer les chèques manuels (table checks) - version simplifiée
-      let manualQuery = supabase
-        .from('checks')
-        .select(`
-          *,
-          projects(nom),
-          expenses(nom, montant_total),
-          sales(description, avance_total)
-        `)
-        .eq('user_id', user.id);
-
-      // Filtrer par projet si spécifié
+      // Récupérer les chèques via l'API backend
+      let checks: CheckRecord[];
       if (selectedProject && selectedProject !== 'all') {
-        manualQuery = manualQuery.eq('project_id', selectedProject);
+        checks = await CheckService.getChecksByProject(selectedProject, checkFilters);
+      } else {
+        checks = await CheckService.getChecks(checkFilters);
       }
 
-      // Tri
-      const sortBy = filters.sortBy || 'created_at';
-      const sortOrder = filters.sortOrder || 'desc';
-      manualQuery = manualQuery.order(sortBy, { ascending: sortOrder === 'asc' });
-
-      const { data: manualChecks, error: manualError } = await manualQuery;
-      if (manualError) throw manualError;
-
-      // Pour l'instant, utilisons seulement les chèques manuels
-      setChecks(manualChecks || []);
+      setChecks(checks);
 
     } catch (error: any) {
       console.error('Error fetching checks:', error);
@@ -158,6 +128,26 @@ const Checks = () => {
     }
   }, [user?.id]);
 
+  // Écouter les événements de création de chèques
+  useEffect(() => {
+    const unsubscribe = eventBus.on(EVENTS.CHECK_CREATED, (data) => {
+      console.log('🔄 Événement CHECK_CREATED reçu:', data);
+      // Rafraîchir la liste des chèques
+      fetchChecks();
+
+      // Afficher une notification si le chèque vient d'une dépense
+      if (data?.source === 'expense') {
+        toast({
+          title: "Chèque ajouté",
+          description: "Un nouveau chèque a été créé via une dépense",
+        });
+      }
+    });
+
+    // Nettoyer l'abonnement au démontage
+    return unsubscribe;
+  }, []);
+
   // Handler pour les changements de filtres
   const handleFiltersChange = async (newFilters: CheckFiltersState) => {
     setFilters(newFilters);
@@ -165,41 +155,28 @@ const Checks = () => {
     if (user?.id) {
       // Ne pas afficher le spinner pour les filtres, juste mettre à jour les données
       try {
-        // Récupérer les chèques avec les nouveaux filtres
-        let manualQuery = supabase
-          .from('checks')
-          .select(`
-            *,
-            projects(nom),
-            expenses(nom, montant_total),
-            sales(description, avance_total)
-          `)
-          .eq('user_id', user.id);
+        // Convertir les filtres au format attendu par le service
+        const checkFilters: CheckFilters = {
+          searchTerm: newFilters.searchTerm || undefined,
+          type_cheque: newFilters.type_cheque || undefined,
+          date_debut: newFilters.date_debut?.toISOString().split('T')[0] || undefined,
+          date_fin: newFilters.date_fin?.toISOString().split('T')[0] || undefined,
+          montant_min: newFilters.montant_min || undefined,
+          montant_max: newFilters.montant_max || undefined,
+          statut: newFilters.statut || undefined,
+          sortBy: newFilters.sortBy,
+          sortOrder: newFilters.sortOrder
+        };
 
-        // Filtrer par projet si spécifié
+        // Récupérer les chèques via l'API backend
+        let checks: CheckRecord[];
         if (selectedProject && selectedProject !== 'all') {
-          manualQuery = manualQuery.eq('project_id', selectedProject);
+          checks = await CheckService.getChecksByProject(selectedProject, checkFilters);
+        } else {
+          checks = await CheckService.getChecks(checkFilters);
         }
 
-        // Appliquer les filtres de recherche
-        if (newFilters.searchTerm) {
-          const searchTerm = newFilters.searchTerm.toLowerCase();
-          manualQuery = manualQuery.or(`numero_cheque.ilike.%${searchTerm}%,nom_beneficiaire.ilike.%${searchTerm}%,nom_emetteur.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
-        }
-
-        if (newFilters.type_cheque) {
-          manualQuery = manualQuery.eq('type_cheque', newFilters.type_cheque);
-        }
-
-        // Tri
-        const sortBy = newFilters.sortBy || 'created_at';
-        const sortOrder = newFilters.sortOrder || 'desc';
-        manualQuery = manualQuery.order(sortBy, { ascending: sortOrder === 'asc' });
-
-        const { data: manualChecks, error: manualError } = await manualQuery;
-        if (manualError) throw manualError;
-
-        setChecks(manualChecks || []);
+        setChecks(checks);
       } catch (error: any) {
         console.error('Error fetching checks:', error);
         toast({
@@ -218,40 +195,28 @@ const Checks = () => {
     if (user?.id) {
       // Ne pas afficher le spinner pour le changement de projet non plus
       try {
-        let manualQuery = supabase
-          .from('checks')
-          .select(`
-            *,
-            projects(nom),
-            expenses(nom, montant_total),
-            sales(description, avance_total)
-          `)
-          .eq('user_id', user.id);
+        // Convertir les filtres au format attendu par le service
+        const checkFilters: CheckFilters = {
+          searchTerm: filters.searchTerm || undefined,
+          type_cheque: filters.type_cheque || undefined,
+          date_debut: filters.date_debut?.toISOString().split('T')[0] || undefined,
+          date_fin: filters.date_fin?.toISOString().split('T')[0] || undefined,
+          montant_min: filters.montant_min || undefined,
+          montant_max: filters.montant_max || undefined,
+          statut: filters.statut || undefined,
+          sortBy: filters.sortBy,
+          sortOrder: filters.sortOrder
+        };
 
-        // Filtrer par projet si spécifié
+        // Récupérer les chèques via l'API backend
+        let checks: CheckRecord[];
         if (projectId && projectId !== 'all') {
-          manualQuery = manualQuery.eq('project_id', projectId);
+          checks = await CheckService.getChecksByProject(projectId, checkFilters);
+        } else {
+          checks = await CheckService.getChecks(checkFilters);
         }
 
-        // Appliquer les filtres existants
-        if (filters.searchTerm) {
-          const searchTerm = filters.searchTerm.toLowerCase();
-          manualQuery = manualQuery.or(`numero_cheque.ilike.%${searchTerm}%,nom_beneficiaire.ilike.%${searchTerm}%,nom_emetteur.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
-        }
-
-        if (filters.type_cheque) {
-          manualQuery = manualQuery.eq('type_cheque', filters.type_cheque);
-        }
-
-        // Tri
-        const sortBy = filters.sortBy || 'created_at';
-        const sortOrder = filters.sortOrder || 'desc';
-        manualQuery = manualQuery.order(sortBy, { ascending: sortOrder === 'asc' });
-
-        const { data: manualChecks, error: manualError } = await manualQuery;
-        if (manualError) throw manualError;
-
-        setChecks(manualChecks || []);
+        setChecks(checks);
       } catch (error: any) {
         console.error('Error fetching checks:', error);
         toast({
@@ -269,34 +234,37 @@ const Checks = () => {
 
     const formData = new FormData(e.currentTarget);
     const checkData = {
-      user_id: user?.id,
-      project_id: formData.get('project_id') as string === 'none' ? null : formData.get('project_id') as string,
+      project_id: formData.get('project_id') as string === 'none' ? undefined : formData.get('project_id') as string,
       type_cheque: formData.get('type_cheque') as 'recu' | 'donne',
       montant: parseFloat(formData.get('montant') as string),
-      numero_cheque: formData.get('numero_cheque') as string,
-      nom_beneficiaire: formData.get('nom_beneficiaire') as string || null,
-      nom_emetteur: formData.get('nom_emetteur') as string || null,
+      numero_cheque: formData.get('numero_cheque') as string || undefined,
+      nom_beneficiaire: formData.get('nom_beneficiaire') as string || undefined,
+      nom_emetteur: formData.get('nom_emetteur') as string || undefined,
       date_emission: formData.get('date_emission') as string,
-      date_encaissement: formData.get('date_encaissement') as string || null,
-      description: formData.get('description') as string,
+      date_encaissement: formData.get('date_encaissement') as string || undefined,
+      description: formData.get('description') as string || undefined,
+      statut: 'emis' as const,
       facture_recue: false,
     };
 
     try {
-      const { error } = await supabase
-        .from('checks')
-        .insert([checkData]);
-
-      if (error) throw error;
+      const newCheck = await CheckService.createCheck(checkData);
 
       toast({
         title: "Succès",
         description: "Chèque ajouté avec succès",
       });
 
+      // Émettre un événement pour notifier la création du chèque
+      eventBus.emit(EVENTS.CHECK_CREATED, {
+        check: newCheck,
+        source: 'checks_page'
+      });
+
       setIsDialogOpen(false);
       fetchChecks();
     } catch (error: any) {
+      console.error('Error creating check:', error);
       toast({
         title: "Erreur",
         description: "Impossible d'ajouter le chèque",
@@ -309,12 +277,7 @@ const Checks = () => {
 
   const toggleFactureRecue = async (checkId: string, currentValue: boolean) => {
     try {
-      const { error } = await supabase
-        .from('checks')
-        .update({ facture_recue: !currentValue })
-        .eq('id', checkId);
-
-      if (error) throw error;
+      await CheckService.updateCheck(checkId, { facture_recue: !currentValue });
 
       setChecks(checks.map(check => 
         check.id === checkId 
@@ -327,6 +290,7 @@ const Checks = () => {
         description: `Statut facture mis à jour`,
       });
     } catch (error: any) {
+      console.error('Error updating check:', error);
       toast({
         title: "Erreur",
         description: "Impossible de mettre à jour le statut",
@@ -338,7 +302,7 @@ const Checks = () => {
   const receivedChecks = checks.filter(check => check.type_cheque === 'recu');
   const givenChecks = checks.filter(check => check.type_cheque === 'donne');
 
-  if (loading || isLoading) {
+  if (isLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
     </div>;
@@ -554,9 +518,9 @@ const Checks = () => {
                             )}
                           </CardTitle>
                           <CardDescription>
-                            {check.projects?.nom || 'Général'} • N° {check.numero_cheque}
-                            {check.sales && (
-                              <span className="text-success"> • Vente: {check.sales.description}</span>
+                            {check.project_nom || 'Général'} • N° {check.numero_cheque}
+                            {check.client_nom && (
+                              <span className="text-success"> • Client: {check.client_nom}</span>
                             )}
                             {check.unite_numero && (
                               <span className="text-primary"> • Unité: {check.unite_numero}</span>
@@ -591,12 +555,12 @@ const Checks = () => {
                             <div className="font-semibold">
                               <Badge variant={
                                 check.statut === 'encaisse' ? 'default' :
-                                check.statut === 'rejete' ? 'destructive' :
+                                check.statut === 'annule' ? 'destructive' :
                                 'secondary'
                               }>
                                 {check.statut === 'emis' ? 'Émis' :
                                  check.statut === 'encaisse' ? 'Encaissé' :
-                                 check.statut === 'rejete' ? 'Rejeté' : check.statut}
+                                 check.statut === 'annule' ? 'Annulé' : check.statut}
                               </Badge>
                             </div>
                           </div>
@@ -645,12 +609,12 @@ const Checks = () => {
                             {check.montant.toLocaleString()} DH
                           </CardTitle>
                           <CardDescription>
-                            {check.projects?.nom || 'Général'} • N° {check.numero_cheque}
-                            {check.expenses && (
-                              <span className="text-primary"> • Dépense: {check.expenses.nom}</span>
+                            {check.project_nom || 'Général'} • N° {check.numero_cheque}
+                            {check.expense_nom && (
+                              <span className="text-primary"> • Dépense: {check.expense_nom}</span>
                             )}
-                            {check.sales && (
-                              <span className="text-success"> • Vente: {check.sales.description}</span>
+                            {check.client_nom && (
+                              <span className="text-success"> • Client: {check.client_nom}</span>
                             )}
                           </CardDescription>
                         </div>

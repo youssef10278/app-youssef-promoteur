@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,28 +28,73 @@ import { CompanySettingsModal } from './CompanySettingsModal';
 import { usePrint } from '@/hooks/usePrint';
 import { useCompanySettings } from '@/hooks/useCompanySettings';
 import { useToast } from '@/hooks/use-toast';
+import { enrichPaymentPlansWithInitialAdvance, calculateUnifiedPaymentTotals } from '@/utils/paymentHistory';
+import { EditPaymentModal } from './EditPaymentModal';
+import { SalesServiceNew } from '@/services/salesServiceNew';
 
 interface SaleDetailsModalProps {
   sale: Sale;
   onClose: () => void;
   onAddPayment: () => void;
+  onRefresh?: () => void;
 }
 
 interface SaleWithPayments extends Sale {
   payment_plans?: PaymentPlan[];
 }
 
-export function SaleDetailsModal({ sale, onClose, onAddPayment }: SaleDetailsModalProps) {
+export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: SaleDetailsModalProps) {
   const saleWithPayments = sale as SaleWithPayments;
   const { printComponent } = usePrint();
   const { companyInfo, saveCompanyInfo } = useCompanySettings();
   const { toast } = useToast();
   const [showCompanySettings, setShowCompanySettings] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<PaymentPlan | null>(null);
+  const [localPaymentPlans, setLocalPaymentPlans] = useState<PaymentPlan[]>(saleWithPayments.payment_plans || []);
 
-  // Calculer les statistiques
-  const totalPaid = saleWithPayments.payment_plans?.reduce((sum, plan) => sum + (plan.montant_paye || 0), 0) || 0;
-  const remainingAmount = sale.prix_total - totalPaid;
-  const progressPercentage = sale.prix_total > 0 ? (totalPaid / sale.prix_total) * 100 : 0;
+  // Fonction pour recharger les données de paiement
+  const reloadPaymentData = async () => {
+    try {
+      console.log('🔄 Rechargement des données de paiement pour la vente:', sale.id);
+
+      // Récupérer la vente complète avec tous ses détails
+      const updatedSale = await SalesServiceNew.getSaleById(sale.id);
+
+      if (updatedSale) {
+        setLocalPaymentPlans(updatedSale.payment_plans || []);
+        console.log('✅ Données de paiement rechargées avec succès:', {
+          saleId: sale.id,
+          plansCount: updatedSale.payment_plans?.length || 0,
+          plans: updatedSale.payment_plans
+        });
+
+        // Déclencher le rafraîchissement de la liste parent si disponible
+        if (onRefresh) {
+          console.log('🔄 Déclenchement du rafraîchissement parent...');
+          onRefresh();
+        }
+      } else {
+        console.warn('⚠️ Aucune donnée de vente retournée lors du rechargement');
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors du rechargement des données de paiement:', error);
+      // Afficher l'erreur à l'utilisateur
+      toast({
+        title: "Erreur de rechargement",
+        description: "Impossible de recharger les données de paiement. Veuillez rafraîchir la page.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Effet pour initialiser les données locales
+  useEffect(() => {
+    setLocalPaymentPlans(saleWithPayments.payment_plans || []);
+  }, [saleWithPayments.payment_plans]);
+
+  // Calculer les statistiques - REFONTE: Utiliser la logique unifiée avec les données locales
+  const paymentTotals = calculateUnifiedPaymentTotals(sale, localPaymentPlans);
+  const { totalPaid, remainingAmount, percentage: progressPercentage, enrichedPaymentPlans } = paymentTotals;
 
   // Fonction pour imprimer l'historique des paiements
   const handlePrintHistory = () => {
@@ -57,7 +102,7 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment }: SaleDetailsMod
       const printElement = (
         <PaymentHistoryPrint
           sale={sale}
-          paymentPlans={saleWithPayments.payment_plans || []}
+          paymentPlans={enrichedPaymentPlans}
           companyInfo={companyInfo}
         />
       );
@@ -231,7 +276,7 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment }: SaleDetailsMod
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-sm text-muted-foreground">Prix total</p>
-                    <p className="font-medium">{formatAmount(sale.prix_total)} DH</p>
+                    <p className="font-medium">{formatAmount(sale.prix_total)}</p>
                   </div>
                 </div>
                 
@@ -266,14 +311,14 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment }: SaleDetailsMod
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-green-50 rounded-lg">
                 <div className="text-2xl font-bold text-green-600">
-                  {formatAmount(totalPaid)} DH
+                  {formatAmount(totalPaid)}
                 </div>
                 <div className="text-sm text-green-700">Montant payé</div>
               </div>
               
               <div className="text-center p-4 bg-blue-50 rounded-lg">
                 <div className="text-2xl font-bold text-blue-600">
-                  {formatAmount(remainingAmount)} DH
+                  {formatAmount(remainingAmount)}
                 </div>
                 <div className="text-sm text-blue-700">Montant restant</div>
               </div>
@@ -333,7 +378,7 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment }: SaleDetailsMod
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {!saleWithPayments.payment_plans || saleWithPayments.payment_plans.length === 0 ? (
+            {enrichedPaymentPlans.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Aucun paiement enregistré</p>
@@ -343,7 +388,7 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment }: SaleDetailsMod
               </div>
             ) : (
               <div className="space-y-4">
-                {saleWithPayments.payment_plans
+                {enrichedPaymentPlans
                   .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                   .map((plan, index) => (
                     <div key={plan.id} className="border rounded-lg p-4 space-y-3">
@@ -360,11 +405,25 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment }: SaleDetailsMod
                           </div>
                         </div>
                         
-                        <div className="text-right">
+                        <div className="text-right space-y-2">
                           <div className="font-medium">
                             {formatAmount(plan.montant_paye || 0)} DH
                           </div>
-                          {getPaymentStatusBadge(plan.statut)}
+                          <div className="flex items-center justify-end space-x-2">
+                            {getPaymentStatusBadge(plan.statut)}
+                            {/* Afficher le bouton Modifier seulement pour les paiements réels (non virtuels) */}
+                            {!plan.id.startsWith('virtual-') && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingPayment(plan)}
+                                className="h-6 px-2 text-xs"
+                                disabled={sale.statut === 'annule'}
+                              >
+                                Modifier
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                       
@@ -447,6 +506,24 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment }: SaleDetailsMod
         currentCompanyInfo={companyInfo}
         onSave={saveCompanyInfo}
       />
+
+      {/* Modal de modification de paiement */}
+      {editingPayment && (
+        <EditPaymentModal
+          sale={sale}
+          paymentPlan={editingPayment}
+          onClose={() => setEditingPayment(null)}
+          onPaymentUpdated={async () => {
+            setEditingPayment(null);
+            // Recharger les données locales du modal
+            await reloadPaymentData();
+            // Recharger les données de la liste principale si la fonction est disponible
+            if (onRefresh) {
+              onRefresh();
+            }
+          }}
+        />
+      )}
     </>
   );
 }

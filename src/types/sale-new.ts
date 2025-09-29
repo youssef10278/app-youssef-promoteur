@@ -33,6 +33,12 @@ export interface Sale {
   created_at: string;
   updated_at: string;
   user_id: string;
+  // Champs d'avance initiale
+  mode_paiement?: PaymentMode;
+  avance_declare?: number;
+  avance_non_declare?: number;
+  avance_cheque?: number;
+  avance_espece?: number;
   // Relations
   projects?: Project;
   payment_plans?: PaymentPlan[];

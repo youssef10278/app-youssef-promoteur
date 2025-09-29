@@ -1,4 +1,4 @@
-import { supabase } from '../integrations/supabase/client';
+import { apiClient } from '@/integrations/api/client';
 import { 
   Sale, 
   SaleFormData, 
@@ -20,8 +20,7 @@ export class SalesService {
    */
   static async createSale(saleData: SaleFormData): Promise<Sale> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non authentifié');
+      // L'authentification est gérée par l'API backend
 
       // 1. Créer la vente
       const { data: sale, error: saleError } = await supabase

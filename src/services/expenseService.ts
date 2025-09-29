@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/integrations/api/client';
 import { Expense, ExpenseFilters } from '@/types/expense';
 
 export class ExpenseService {
@@ -7,68 +7,52 @@ export class ExpenseService {
    */
   static async getExpenses(projectId?: string, filters?: ExpenseFilters): Promise<Expense[]> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non authentifié');
+      // Construire les paramètres de requête
+      const params: Record<string, any> = {};
 
-      let query = supabase
-        .from('expenses')
-        .select(`
-          *,
-          projects!inner(nom, user_id)
-        `)
-        .eq('projects.user_id', user.id);
-
-      // Filtrer par projet si spécifié
       if (projectId && projectId !== 'all') {
-        query = query.eq('project_id', projectId);
+        params.projectId = projectId;
       }
 
-      // Appliquer les filtres de recherche
       if (filters?.searchTerm) {
-        const searchTerm = filters.searchTerm.toLowerCase();
-        query = query.or(`nom.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+        params.search = filters.searchTerm;
       }
 
-      // Filtrer par mode de paiement
       if (filters?.mode_paiement) {
-        query = query.eq('mode_paiement', filters.mode_paiement);
+        params.mode_paiement = filters.mode_paiement;
       }
 
-      // Filtrer par date de début
       if (filters?.date_debut) {
-        query = query.gte('created_at', filters.date_debut);
+        params.date_debut = filters.date_debut;
       }
 
-      // Filtrer par date de fin
       if (filters?.date_fin) {
-        // Ajouter 23:59:59 pour inclure toute la journée
-        const endDate = new Date(filters.date_fin);
-        endDate.setHours(23, 59, 59, 999);
-        query = query.lte('created_at', endDate.toISOString());
+        params.date_fin = filters.date_fin;
       }
 
-      // Filtrer par montant minimum
       if (filters?.montant_min !== undefined && filters.montant_min !== null) {
-        query = query.gte('montant_total', filters.montant_min);
+        params.montant_min = filters.montant_min;
       }
 
-      // Filtrer par montant maximum
       if (filters?.montant_max !== undefined && filters.montant_max !== null) {
-        query = query.lte('montant_total', filters.montant_max);
+        params.montant_max = filters.montant_max;
       }
 
-      // Appliquer le tri
-      const sortBy = filters?.sortBy || 'created_at';
-      const sortOrder = filters?.sortOrder || 'desc';
-      const ascending = sortOrder === 'asc';
+      if (filters?.sortBy) {
+        params.sortBy = filters.sortBy;
+      }
 
-      query = query.order(sortBy, { ascending });
+      if (filters?.sortOrder) {
+        params.sortOrder = filters.sortOrder;
+      }
 
-      const { data, error } = await query;
+      // Appel à l'API
+      const endpoint = projectId && projectId !== 'all'
+        ? `/expenses/project/${projectId}`
+        : '/expenses';
 
-      if (error) throw error;
-
-      return data || [];
+      const response = await apiClient.get(endpoint, params);
+      return response.data;
     } catch (error) {
       console.error('Erreur lors de la récupération des dépenses:', error);
       throw error;
@@ -80,24 +64,8 @@ export class ExpenseService {
    */
   static async createExpense(expenseData: any): Promise<Expense> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non authentifié');
-
-      const { data, error } = await supabase
-        .from('expenses')
-        .insert([{
-          ...expenseData,
-          user_id: user.id
-        }])
-        .select(`
-          *,
-          projects!inner(nom)
-        `)
-        .single();
-
-      if (error) throw error;
-
-      return data;
+      const response = await apiClient.post('/expenses', expenseData);
+      return response.data;
     } catch (error) {
       console.error('Erreur lors de la création de la dépense:', error);
       throw error;
@@ -109,23 +77,8 @@ export class ExpenseService {
    */
   static async updateExpense(expenseId: string, expenseData: Partial<Expense>): Promise<Expense> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non authentifié');
-
-      const { data, error } = await supabase
-        .from('expenses')
-        .update(expenseData)
-        .eq('id', expenseId)
-        .eq('user_id', user.id)
-        .select(`
-          *,
-          projects!inner(nom)
-        `)
-        .single();
-
-      if (error) throw error;
-
-      return data;
+      const response = await apiClient.put(`/expenses/${expenseId}`, expenseData);
+      return response.data;
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la dépense:', error);
       throw error;
@@ -137,16 +90,7 @@ export class ExpenseService {
    */
   static async deleteExpense(expenseId: string): Promise<void> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non authentifié');
-
-      const { error } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('id', expenseId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      await apiClient.delete(`/expenses/${expenseId}`);
     } catch (error) {
       console.error('Erreur lors de la suppression de la dépense:', error);
       throw error;
@@ -158,28 +102,12 @@ export class ExpenseService {
    */
   static async getExpenseById(expenseId: string): Promise<Expense | null> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non authentifié');
-
-      const { data, error } = await supabase
-        .from('expenses')
-        .select(`
-          *,
-          projects!inner(nom)
-        `)
-        .eq('id', expenseId)
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          return null; // Dépense non trouvée
-        }
-        throw error;
+      const response = await apiClient.get(`/expenses/${expenseId}`);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null; // Dépense non trouvée
       }
-
-      return data;
-    } catch (error) {
       console.error('Erreur lors de la récupération de la dépense:', error);
       throw error;
     }
@@ -196,43 +124,12 @@ export class ExpenseService {
     by_payment_mode: Record<string, { count: number; amount: number }>;
   }> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non authentifié');
+      const endpoint = projectId && projectId !== 'all'
+        ? `/expenses/stats/project/${projectId}`
+        : '/expenses/stats';
 
-      let query = supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (projectId && projectId !== 'all') {
-        query = query.eq('project_id', projectId);
-      }
-
-      const { data: expenses, error } = await query;
-
-      if (error) throw error;
-
-      const stats = {
-        total_expenses: expenses?.length || 0,
-        total_amount: 0,
-        declared_amount: 0,
-        undeclared_amount: 0,
-        by_payment_mode: {} as Record<string, { count: number; amount: number }>
-      };
-
-      expenses?.forEach(expense => {
-        stats.total_amount += expense.montant_total;
-        stats.declared_amount += expense.montant_declare;
-        stats.undeclared_amount += expense.montant_non_declare;
-
-        if (!stats.by_payment_mode[expense.mode_paiement]) {
-          stats.by_payment_mode[expense.mode_paiement] = { count: 0, amount: 0 };
-        }
-        stats.by_payment_mode[expense.mode_paiement].count++;
-        stats.by_payment_mode[expense.mode_paiement].amount += expense.montant_total;
-      });
-
-      return stats;
+      const response = await apiClient.get(endpoint);
+      return response.data;
     } catch (error) {
       console.error('Erreur lors de la récupération des statistiques:', error);
       throw error;

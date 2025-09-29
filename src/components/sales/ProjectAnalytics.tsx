@@ -20,7 +20,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { AnalyticsService, ProjectAnalytics } from '@/services/analyticsService';
+import { AnalyticsServiceNew as AnalyticsService, ProjectAnalytics } from '@/services/analyticsServiceNew';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProjectAnalyticsProps {

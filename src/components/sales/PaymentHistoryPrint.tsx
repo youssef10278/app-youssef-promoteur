@@ -2,6 +2,7 @@ import React from 'react';
 import { Sale, PaymentPlan } from '@/types/sale-new';
 import { formatAmount } from '@/utils/payments';
 import { PAYMENT_MODES, SALE_STATUS, PROPERTY_TYPES } from '@/types/sale-new';
+import { enrichPaymentPlansWithInitialAdvance, calculateUnifiedPaymentTotals } from '@/utils/paymentHistory';
 
 interface PaymentHistoryPrintProps {
   sale: Sale;
@@ -34,13 +35,10 @@ export const PaymentHistoryPrint: React.FC<PaymentHistoryPrintProps> = ({
     additionalInfo: ""
   }
 }) => {
-  const saleWithPayments = sale as SaleWithPayments;
-  const allPayments = saleWithPayments.payment_plans || paymentPlans || [];
-
-  // Calculs des totaux
-  const totalPaye = allPayments.reduce((sum, plan) => sum + (plan.montant_paye || 0), 0);
-  const totalRestant = sale.prix_total - totalPaye;
-  const progression = sale.prix_total > 0 ? (totalPaye / sale.prix_total) * 100 : 0;
+  // Utiliser la logique unifiée pour enrichir les payment_plans
+  const paymentTotals = calculateUnifiedPaymentTotals(sale, paymentPlans);
+  const { totalPaid: totalPaye, remainingAmount: totalRestant, percentage: progression, enrichedPaymentPlans } = paymentTotals;
+  const allPayments = enrichedPaymentPlans;
 
   const getPaymentModeLabel = (mode: string) => {
     return PAYMENT_MODES[mode as keyof typeof PAYMENT_MODES] || mode;

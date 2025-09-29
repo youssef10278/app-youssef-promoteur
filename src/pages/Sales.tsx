@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,10 +15,11 @@ import { SaleDetailsModal } from '@/components/sales/SaleDetailsModal';
 import { SalesFilters as SalesFiltersComponent, SalesFiltersState } from '@/components/sales/SalesFilters';
 import { ProjectAnalyticsComponent } from '@/components/sales/ProjectAnalytics';
 import { ProjectSelector } from '@/components/common/ProjectSelector';
-import { SalesService } from '@/services/salesService';
+import { SalesServiceNew as SalesService } from '@/services/salesServiceNew';
+import { ProjectService } from '@/services/projectService';
 
 const Sales = () => {
-  const { user, loading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
 
   // États principaux
@@ -31,7 +31,7 @@ const Sales = () => {
   const [isLoadingSales, setIsLoadingSales] = useState(false);
   const [selectedSaleForPayment, setSelectedSaleForPayment] = useState<SaleWithPayments | null>(null);
   const [selectedSaleForDetails, setSelectedSaleForDetails] = useState<SaleWithPayments | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
   // États pour les filtres
   const [filters, setFilters] = useState<SalesFiltersState>({
@@ -53,13 +53,13 @@ const Sales = () => {
 
     const fetchProjects = async () => {
       try {
-        const { data, error } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+        // Utiliser le ProjectService au lieu de Supabase
+        const data = await ProjectService.getFilteredProjects({
+          searchTerm: '',
+          sortBy: 'created_at',
+          sortOrder: 'desc'
+        });
 
-        if (error) throw error;
         setProjects(data || []);
 
         // Sélectionner le premier projet par défaut
@@ -74,50 +74,51 @@ const Sales = () => {
           variant: "destructive",
         });
       } finally {
-        setIsLoading(false);
+        setIsLoadingProjects(false);
       }
     };
 
     fetchProjects();
   }, [user?.id, toast]);
 
-  // Charger les ventes du projet sélectionné
-  useEffect(() => {
+  // Fonction pour charger les ventes
+  const fetchSales = async () => {
     if (!selectedProject || !user?.id) return;
 
-    const fetchSales = async () => {
-      setIsLoadingSales(true);
-      try {
-        // Convertir les filtres au format attendu par le service
-        const salesFilters: SalesFilters = {
-          searchTerm: filters.searchTerm || undefined,
-          statut: filters.statut || undefined,
-          type_propriete: filters.type_propriete || undefined,
-          mode_paiement: filters.mode_paiement || undefined,
-          date_debut: filters.date_debut?.toISOString() || undefined,
-          date_fin: filters.date_fin?.toISOString() || undefined,
-          montant_min: filters.montant_min || undefined,
-          montant_max: filters.montant_max || undefined,
-          sortBy: filters.sortBy,
-          sortOrder: filters.sortOrder
-        };
+    setIsLoadingSales(true);
+    try {
+      // Convertir les filtres au format attendu par le service
+      const salesFilters: SalesFilters = {
+        searchTerm: filters.searchTerm || undefined,
+        statut: filters.statut || undefined,
+        type_propriete: filters.type_propriete || undefined,
+        mode_paiement: filters.mode_paiement || undefined,
+        date_debut: filters.date_debut?.toISOString() || undefined,
+        date_fin: filters.date_fin?.toISOString() || undefined,
+        montant_min: filters.montant_min || undefined,
+        montant_max: filters.montant_max || undefined,
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder
+      };
 
-        // Charger les ventes depuis la base de données
-        const salesData = await SalesService.getSalesWithPayments(selectedProject, salesFilters);
-        setSales(salesData);
-        setFilteredSales(salesData);
-      } catch (error) {
-        console.error('Error fetching sales:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les ventes",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoadingSales(false);
-      }
-    };
+      // Charger les ventes depuis la base de données
+      const salesData = await SalesService.getSalesWithPayments(selectedProject, salesFilters);
+      setSales(salesData);
+      setFilteredSales(salesData);
+    } catch (error) {
+      console.error('Error fetching sales:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les ventes",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSales(false);
+    }
+  };
 
+  // Charger les ventes du projet sélectionné
+  useEffect(() => {
     fetchSales();
   }, [selectedProject, user?.id, filters, toast]);
 
@@ -180,7 +181,7 @@ const Sales = () => {
   };
 
   // Redirection si non authentifié
-  if (loading) {
+  if (authLoading) {
     return <div className="flex items-center justify-center min-h-screen">Chargement...</div>;
   }
 
@@ -188,7 +189,7 @@ const Sales = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  if (isLoading) {
+  if (isLoadingProjects) {
     return <div className="flex items-center justify-center min-h-screen">Chargement des projets...</div>;
   }
 
@@ -338,6 +339,7 @@ const Sales = () => {
                 setSelectedSaleForDetails(null);
                 setSelectedSaleForPayment(selectedSaleForDetails);
               }}
+              onRefresh={fetchSales}
             />
           )}
         </DialogContent>

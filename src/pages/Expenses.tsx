@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/integrations/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,9 +21,10 @@ import { ExpenseList } from '@/components/expenses/ExpenseList';
 import { ExpenseService } from '@/services/expenseService';
 import { ProjectSelector } from '@/components/common/ProjectSelector';
 import { Project, Expense, ExpenseFormData, CheckData, PAYMENT_MODES, ExpenseFilters } from '@/types/expense';
+import { eventBus, EVENTS } from '@/utils/eventBus';
 
 const Expenses = () => {
-  const { user, loading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
@@ -77,15 +78,18 @@ const Expenses = () => {
 
   const fetchProjects = async () => {
     try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('id, nom')
-        .eq('user_id', user?.id)
-        .order('nom');
+      const response = await apiClient.get('/projects');
+      const projects = response.data || [];
 
-      if (error) throw error;
-      setProjects(data || []);
+      // Mapper les données pour correspondre au format attendu
+      const mappedProjects = projects.map((project: any) => ({
+        id: project.id,
+        nom: project.nom
+      }));
+
+      setProjects(mappedProjects);
     } catch (error: any) {
+      console.error('Erreur lors du chargement des projets:', error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les projets",
@@ -237,45 +241,70 @@ const Expenses = () => {
       // Calculate montant_total if not set
       const montantTotal = formData.montant_total || (formData.montant_declare + formData.montant_non_declare);
 
+      // Adapter les données au schéma backend
       const expenseData = {
         project_id: formData.project_id,
-        user_id: user!.id,
         nom: formData.nom,
-        montant_declare: formData.montant_declare,
-        montant_non_declare: formData.montant_non_declare,
-        montant_total: montantTotal,
-        montant_cheque: formData.mode_paiement === 'cheque' ? montantTotal :
-                       formData.mode_paiement === 'cheque_espece' ? formData.montant_cheque : 0,
-        montant_espece: formData.mode_paiement === 'cheque' ? 0 :
-                       formData.mode_paiement === 'cheque_espece' ? formData.montant_espece :
-                       formData.mode_paiement === 'espece' ? montantTotal : 0,
-        mode_paiement: formData.mode_paiement,
-        description: formData.description,
+        montant_declare: formData.montant_declare || 0,
+        montant_non_declare: formData.montant_non_declare || 0,
+        methode_paiement: formData.mode_paiement === 'cheque_espece' ? 'cheque_et_espece' : formData.mode_paiement,
+        description: formData.description || '',
       };
 
-      const { data: expenseResult, error: expenseError } = await supabase
-        .from('expenses')
-        .insert([expenseData])
-        .select()
-        .single();
+      // Si montant_total est renseigné mais pas les montants détaillés,
+      // on met tout dans montant_declare par défaut
+      if (formData.montant_total && !formData.montant_declare && !formData.montant_non_declare) {
+        expenseData.montant_declare = formData.montant_total;
+        expenseData.montant_non_declare = 0;
+      }
 
-      if (expenseError) throw expenseError;
+      console.log('📤 Envoi des données dépense:', expenseData);
+
+      // Créer la dépense via l'API
+      const response = await apiClient.post('/expenses', expenseData);
+      const expenseResult = response.data;
+
+      console.log('✅ Dépense créée:', expenseResult);
 
       // Si mode paiement avec chèques, insérer les chèques
       if ((formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece') && formData.cheques.length > 0) {
-        const chequesData = formData.cheques.map(cheque => ({
-          ...cheque,
-          expense_id: expenseResult.id,
-          user_id: user!.id,
-          type_cheque: 'donne', // Les chèques de dépense sont toujours des chèques donnés
-          project_id: formData.project_id,
-        }));
+        // Créer les chèques un par un
+        for (const cheque of formData.cheques) {
+          const chequeData = {
+            project_id: formData.project_id,
+            expense_id: expenseResult.id,
+            type_cheque: 'donne', // Les chèques de dépense sont toujours des chèques donnés
+            montant: cheque.montant,
+            numero_cheque: cheque.numero_cheque,
+            nom_beneficiaire: cheque.nom_beneficiaire,
+            nom_emetteur: cheque.nom_emetteur,
+            date_emission: cheque.date_emission,
+            date_encaissement: cheque.date_encaissement || null,
+            statut: 'emis',
+            facture_recue: false,
+            description: `Chèque pour dépense: ${formData.nom}`
+          };
 
-        const { error: chequesError } = await supabase
-          .from('checks')
-          .insert(chequesData);
+          console.log('📤 Envoi du chèque:', chequeData);
 
-        if (chequesError) throw chequesError;
+          try {
+            const checkResponse = await apiClient.post('/checks', chequeData);
+            console.log('✅ Chèque créé avec succès');
+
+            // Émettre un événement pour notifier la création du chèque
+            eventBus.emit(EVENTS.CHECK_CREATED, {
+              check: checkResponse.data,
+              source: 'expense'
+            });
+          } catch (error) {
+            console.error('❌ Erreur lors de la création du chèque:', error);
+            toast({
+              title: "Attention",
+              description: "Dépense créée mais erreur lors de l'enregistrement d'un chèque",
+              variant: "destructive",
+            });
+          }
+        }
       }
 
       toast({
@@ -354,7 +383,7 @@ const Expenses = () => {
 
 
 
-  if (loading || isLoading) {
+  if (authLoading || isLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
     </div>;

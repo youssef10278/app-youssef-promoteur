@@ -10,10 +10,10 @@ import { ProjectList } from '@/components/projects/ProjectList';
 import { ProjectStats } from '@/components/projects/ProjectStats';
 
 const Projects = () => {
-  const { user, loading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [filters, setFilters] = useState<ProjectFiltersState>({
     searchTerm: '',
@@ -29,7 +29,7 @@ const Projects = () => {
   // Charger les projets avec filtres
   const loadProjects = useCallback(async (currentFilters: ProjectFilters) => {
     try {
-      setIsLoading(true);
+      setIsLoadingProjects(true);
       const data = await ProjectService.getFilteredProjects(currentFilters);
       setFilteredProjects(data);
     } catch (error: any) {
@@ -40,7 +40,7 @@ const Projects = () => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingProjects(false);
     }
   }, [toast]);
 
@@ -91,7 +91,7 @@ const Projects = () => {
     });
   };
 
-  if (loading || isLoading) {
+  if (authLoading || isLoadingProjects) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
     </div>;
@@ -142,19 +142,19 @@ const Projects = () => {
             filters={filters}
             onFiltersChange={handleFiltersChange}
             totalResults={filteredProjects.length}
-            isLoading={isLoading}
+            isLoading={isLoadingProjects}
           />
 
           {/* Section Liste des Projets */}
           <ProjectList
             projects={filteredProjects}
-            isLoading={isLoading}
+            isLoading={isLoadingProjects}
             onEdit={handleEditProject}
             onDelete={handleDeleteProject}
           />
 
           {/* Message si aucun projet */}
-          {!isLoading && filteredProjects.length === 0 && filters.searchTerm === '' && (
+          {!isLoadingProjects && filteredProjects.length === 0 && filters.searchTerm === '' && (
             <div className="text-center py-12">
               <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">Aucun projet</h3>

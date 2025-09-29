@@ -22,6 +22,7 @@ import { PaymentHistoryPrint } from './PaymentHistoryPrint';
 import { usePrint } from '@/hooks/usePrint';
 import { useCompanySettings } from '@/hooks/useCompanySettings';
 import { useToast } from '@/hooks/use-toast';
+import { enrichPaymentPlansWithInitialAdvance, calculateUnifiedPaymentTotals } from '@/utils/paymentHistory';
 
 interface SalesListProps {
   sales: Sale[];
@@ -54,10 +55,11 @@ export function SalesList({ sales, onAddPayment, onViewDetails, onPrintHistory }
   const handlePrintHistory = (sale: Sale) => {
     try {
       const saleWithPayments = sale as SaleWithPayments;
+      const enrichedPlans = enrichPaymentPlansWithInitialAdvance(sale, saleWithPayments.payment_plans);
       const printElement = (
         <PaymentHistoryPrint
           sale={sale}
-          paymentPlans={saleWithPayments.payment_plans || []}
+          paymentPlans={enrichedPlans}
           companyInfo={companyInfo}
         />
       );
@@ -93,19 +95,9 @@ export function SalesList({ sales, onAddPayment, onViewDetails, onPrintHistory }
   };
 
   const calculateSaleProgress = (sale: SaleWithPayments) => {
-    if (!sale.payment_plans || sale.payment_plans.length === 0) {
-      return {
-        totalPaid: 0,
-        totalDue: sale.prix_total,
-        percentage: 0,
-        nextPaymentDate: null,
-        overduePayments: 0
-      };
-    }
-
-    const totalPaid = sale.payment_plans.reduce((sum, plan) => sum + (plan.montant_paye || 0), 0);
-    const totalDue = sale.prix_total;
-    const percentage = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
+    // REFONTE: Utiliser la logique unifiée
+    const paymentTotals = calculateUnifiedPaymentTotals(sale, sale.payment_plans);
+    const { totalPaid, totalDue, percentage, enrichedPaymentPlans } = paymentTotals;
     
     // Trouver le prochain paiement
     const today = new Date();
@@ -125,7 +117,8 @@ export function SalesList({ sales, onAddPayment, onViewDetails, onPrintHistory }
       totalDue,
       percentage,
       nextPaymentDate: nextPayment?.date_prevue || null,
-      overduePayments
+      overduePayments,
+      enrichedPaymentPlans
     };
   };
 
@@ -244,14 +237,14 @@ export function SalesList({ sales, onAddPayment, onViewDetails, onPrintHistory }
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="text-center p-3 bg-green-50 rounded-lg">
                     <div className="text-xl sm:text-2xl font-bold text-green-600">
-                      {formatAmount(progress.totalPaid)} DH
+                      {formatAmount(progress.totalPaid)}
                     </div>
                     <div className="text-sm text-green-700">Montant payé</div>
                   </div>
 
                   <div className="text-center p-3 bg-blue-50 rounded-lg">
                     <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                      {formatAmount(progress.totalDue - progress.totalPaid)} DH
+                      {formatAmount(progress.totalDue - progress.totalPaid)}
                     </div>
                     <div className="text-sm text-blue-700">Montant restant</div>
                   </div>
@@ -306,10 +299,10 @@ export function SalesList({ sales, onAddPayment, onViewDetails, onPrintHistory }
                 )}
 
                 {/* Historique des paiements (expandable) */}
-                {isExpanded && sale.payment_plans && sale.payment_plans.length > 0 && (
+                {isExpanded && progress.enrichedPaymentPlans && progress.enrichedPaymentPlans.length > 0 && (
                   <div className="mt-4 space-y-2 border-t pt-4">
                     <h4 className="font-medium text-sm">Historique des paiements</h4>
-                    {sale.payment_plans
+                    {progress.enrichedPaymentPlans
                       .sort((a, b) => a.numero_echeance - b.numero_echeance)
                       .map((plan) => (
                         <div key={plan.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">

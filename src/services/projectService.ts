@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/integrations/api/client';
 
 export interface ProjectFilters {
   searchTerm: string;
@@ -29,43 +29,18 @@ export class ProjectService {
    */
   static async getFilteredProjects(filters: ProjectFilters): Promise<Project[]> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non authentifié');
+      // Utilisation de la nouvelle API
+      const response = await apiClient.get('/projects', {
+        search: filters.searchTerm,
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder,
+        minSurface: filters.minSurface,
+        maxSurface: filters.maxSurface,
+        minLots: filters.minLots,
+        maxLots: filters.maxLots
+      });
 
-      let query = supabase
-        .from('projects')
-        .select('*')
-        .eq('user_id', user.id);
-
-      // Filtrage par terme de recherche
-      if (filters.searchTerm) {
-        query = query.or(`nom.ilike.%${filters.searchTerm}%,localisation.ilike.%${filters.searchTerm}%,societe.ilike.%${filters.searchTerm}%`);
-      }
-
-      // Filtrage par surface
-      if (filters.minSurface !== undefined && filters.minSurface > 0) {
-        query = query.gte('surface_totale', filters.minSurface);
-      }
-      if (filters.maxSurface !== undefined && filters.maxSurface > 0) {
-        query = query.lte('surface_totale', filters.maxSurface);
-      }
-
-      // Filtrage par nombre de lots
-      if (filters.minLots !== undefined && filters.minLots > 0) {
-        query = query.gte('nombre_lots', filters.minLots);
-      }
-      if (filters.maxLots !== undefined && filters.maxLots > 0) {
-        query = query.lte('nombre_lots', filters.maxLots);
-      }
-
-      // Tri
-      const sortColumn = this.getSortColumn(filters.sortBy);
-      query = query.order(sortColumn, { ascending: filters.sortOrder === 'asc' });
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return data || [];
+      return response.data;
     } catch (error) {
       console.error('Erreur lors de la récupération des projets filtrés:', error);
       throw error;
@@ -124,28 +99,9 @@ export class ProjectService {
     averageSurface: number;
   }> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non authentifié');
-
-      const { data, error } = await supabase
-        .from('projects')
-        .select('surface_totale, nombre_lots')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      const projects = data || [];
-      const totalProjects = projects.length;
-      const totalSurface = projects.reduce((sum, p) => sum + (p.surface_totale || 0), 0);
-      const totalLots = projects.reduce((sum, p) => sum + (p.nombre_lots || 0), 0);
-      const averageSurface = totalProjects > 0 ? totalSurface / totalProjects : 0;
-
-      return {
-        totalProjects,
-        totalSurface,
-        totalLots,
-        averageSurface
-      };
+      // Utilisation de la nouvelle API
+      const response = await apiClient.get('/projects/stats');
+      return response.data;
     } catch (error) {
       console.error('Erreur lors de la récupération des statistiques:', error);
       throw error;

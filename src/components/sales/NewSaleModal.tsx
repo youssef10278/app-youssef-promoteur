@@ -11,7 +11,7 @@ import { PriceConfigForm } from './PriceConfigForm';
 import { FirstPaymentForm } from './FirstPaymentForm';
 import { Project, PropertyType, SaleFormData as SaleFormDataType } from '@/types/sale-new';
 import { generateAvailableUnits, getAvailableUnitsForType } from '@/utils/inventory';
-import { SalesService } from '@/services/salesService';
+import { SalesServiceNew as SalesService } from '@/services/salesServiceNew';
 import { useToast } from '@/components/ui/use-toast';
 
 interface NewSaleModalProps {

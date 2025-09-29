@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiClient } from '@/integrations/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,10 +21,9 @@ import {
   EyeOff
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 const Settings = () => {
-  const { user, profile, loading } = useAuth();
+  const { user, isLoading } = useAuth();
   const { toast } = useToast();
   
   // États pour le changement de mot de passe
@@ -41,13 +41,13 @@ const Settings = () => {
 
   // États pour les informations du profil
   const [profileData, setProfileData] = useState({
-    nom: profile?.nom || '',
+    nom: user?.nom || '',
     email: user?.email || '',
-    telephone: profile?.telephone || ''
+    telephone: user?.telephone || ''
   });
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -86,11 +86,14 @@ const Settings = () => {
     setIsChangingPassword(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: passwordData.newPassword
-      });
+      // TODO: Implémenter l'endpoint de changement de mot de passe dans l'API backend
+      // const response = await apiClient.changePassword({
+      //   currentPassword: passwordData.currentPassword,
+      //   newPassword: passwordData.newPassword
+      // });
 
-      if (error) throw error;
+      // Pour l'instant, simuler une erreur pour indiquer que la fonctionnalité n'est pas encore disponible
+      throw new Error('Fonctionnalité de changement de mot de passe en cours de développement');
 
       toast({
         title: "Succès",
@@ -105,8 +108,8 @@ const Settings = () => {
       });
     } catch (error: any) {
       toast({
-        title: "Erreur",
-        description: error.message || "Impossible de modifier le mot de passe",
+        title: "Fonctionnalité non disponible",
+        description: "Le changement de mot de passe sera bientôt disponible",
         variant: "destructive"
       });
     } finally {
@@ -119,15 +122,14 @@ const Settings = () => {
     setIsUpdatingProfile(true);
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          nom: profileData.nom,
-          telephone: profileData.telephone
-        })
-        .eq('id', user.id);
+      const response = await apiClient.updateProfile({
+        nom: profileData.nom,
+        telephone: profileData.telephone
+      });
 
-      if (error) throw error;
+      if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la mise à jour');
+      }
 
       toast({
         title: "Succès",

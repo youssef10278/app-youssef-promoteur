@@ -1,32 +1,58 @@
 import { useState } from 'react';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, Mail, Lock, Shield, TrendingUp, Users } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
-  const { user, signIn, loading } = useAuth();
+  const { user, login, isLoading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
 
-  if (loading) {
+  // Récupérer la page de destination depuis l'état de navigation
+  const from = location.state?.from?.pathname || '/dashboard';
+
+  if (authLoading) {
     return <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-foreground"></div>
     </div>;
   }
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={from} replace />;
   }
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    const formData = new FormData(e.currentTarget);
-    await signIn(formData.get('email') as string, formData.get('password') as string);
-    setIsLoading(false);
+
+    try {
+      const formData = new FormData(e.currentTarget);
+      const email = formData.get('email') as string;
+      const password = formData.get('password') as string;
+
+      await login(email, password);
+
+      // Rediriger vers la page de destination
+      navigate(from, { replace: true });
+
+      toast({
+        title: "Connexion réussie",
+        description: "Bienvenue sur votre plateforme de gestion immobilière.",
+        variant: "default",
+      });
+    } catch (error) {
+      // L'erreur est déjà gérée par le hook useAuth
+      console.error('Erreur de connexion:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -143,6 +169,15 @@ const Auth = () => {
                     )}
                   </Button>
                 </form>
+
+                <div className="mt-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Pas encore de compte ?{' '}
+                    <Link to="/abc" className="text-primary hover:underline font-medium">
+                      Créer un compte
+                    </Link>
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>

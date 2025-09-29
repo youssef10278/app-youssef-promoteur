@@ -8,10 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Building2, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 
 const Register = () => {
-  const { user, signUp, loading } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+  const { user, register, isLoading: authLoading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (loading) {
+  if (authLoading) {
     return <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-foreground"></div>
     </div>;
@@ -23,14 +23,14 @@ const Register = () => {
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
-    await signUp(
-      formData.get('email') as string, 
-      formData.get('password') as string,
-      { nom: formData.get('nom') as string }
-    );
-    setIsLoading(false);
+    await register({
+      email: formData.get('email') as string,
+      password: formData.get('password') as string,
+      nom: formData.get('nom') as string
+    });
+    setIsSubmitting(false);
   };
 
   return (
@@ -106,8 +106,8 @@ const Register = () => {
               </div>
             </div>
 
-            <Button type="submit" className="w-full btn-secondary-gradient h-12 text-base" disabled={isLoading}>
-              {isLoading ? (
+            <Button type="submit" className="w-full btn-secondary-gradient h-12 text-base" disabled={isSubmitting}>
+              {isSubmitting ? (
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>Création...</span>

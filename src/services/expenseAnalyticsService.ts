@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/integrations/api/client';
 
 export interface ExpenseAnalytics {
   // Totaux généraux
@@ -63,32 +63,10 @@ export class ExpenseAnalyticsService {
    */
   static async getProjectExpenseAnalytics(projectId: string): Promise<ExpenseAnalytics> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non authentifié');
-
-      // Récupérer toutes les dépenses du projet
-      const { data: expenses, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      // Récupérer les informations du projet
-      let projectInfo = null;
-      if (expenses && expenses.length > 0) {
-        const { data: project } = await supabase
-          .from('projects')
-          .select('nom')
-          .eq('id', projectId)
-          .single();
-        projectInfo = project;
-      }
-
-      return this.calculateAnalytics(expenses || [], projectInfo);
+      const response = await apiClient.get(`/expenses/analytics/project/${projectId}`);
+      return response.data;
     } catch (error) {
-      console.error('Erreur lors de la récupération des analytics de dépenses:', error);
+      console.error('Erreur lors de la récupération des analytics de projet:', error);
       throw error;
     }
   }
@@ -98,35 +76,8 @@ export class ExpenseAnalyticsService {
    */
   static async getAllExpenseAnalytics(): Promise<ExpenseAnalytics> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non authentifié');
-
-      // Récupérer toutes les dépenses de l'utilisateur
-      const { data: expenses, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      // Récupérer les informations des projets
-      const projectIds = [...new Set(expenses?.map(e => e.project_id) || [])];
-      const projectsMap = new Map();
-
-      if (projectIds.length > 0) {
-        const { data: projects } = await supabase
-          .from('projects')
-          .select('id, nom')
-          .in('id', projectIds);
-
-        if (projects) {
-          projects.forEach(project => {
-            projectsMap.set(project.id, project);
-          });
-        }
-      }
-
-      return this.calculateAnalytics(expenses || [], null, projectsMap);
+      const response = await apiClient.get('/expenses/analytics');
+      return response.data;
     } catch (error) {
       console.error('Erreur lors de la récupération des analytics globales de dépenses:', error);
       throw error;

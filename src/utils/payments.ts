@@ -207,15 +207,23 @@ export function validatePayment(
 }
 
 /**
- * Formate un montant en DH
+ * Formate un montant en DH avec conversion automatique des types
  */
-export function formatAmount(amount: number): string {
+export function formatAmount(amount: number | string | null | undefined): string {
+  // Convertir en number si c'est une string ou autre type
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
+
+  // Vérifier si c'est un nombre valide
+  if (isNaN(numericAmount)) {
+    return '0 DH';
+  }
+
   return new Intl.NumberFormat('fr-MA', {
     style: 'currency',
     currency: 'MAD',
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
-  }).format(amount).replace('MAD', 'DH');
+  }).format(numericAmount).replace('MAD', 'DH');
 }
 
 /**
