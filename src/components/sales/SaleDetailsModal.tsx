@@ -29,7 +29,7 @@ import { usePrint } from '@/hooks/usePrint';
 import { useCompanySettings } from '@/hooks/useCompanySettings';
 import { useToast } from '@/hooks/use-toast';
 import { enrichPaymentPlansWithInitialAdvance, calculateUnifiedPaymentTotals } from '@/utils/paymentHistory';
-import { EditPaymentModal } from './EditPaymentModal';
+import { ModifyPaymentModal } from './ModifyPaymentModal';
 import { SalesServiceNew } from '@/services/salesServiceNew';
 
 interface SaleDetailsModalProps {
@@ -55,23 +55,32 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
   // Fonction pour recharger les données de paiement
   const reloadPaymentData = async () => {
     try {
-      console.log('🔄 Rechargement des données de paiement pour la vente:', sale.id);
+      console.log('🔄 [SaleDetailsModal] Rechargement des données de paiement pour la vente:', sale.id);
+      console.log('🔄 Plans actuels avant rechargement:', localPaymentPlans);
 
       // Récupérer la vente complète avec tous ses détails
       const updatedSale = await SalesServiceNew.getSaleById(sale.id);
 
+      console.log('🔄 Vente récupérée:', updatedSale);
+
       if (updatedSale) {
-        setLocalPaymentPlans(updatedSale.payment_plans || []);
+        const newPlans = updatedSale.payment_plans || [];
+        console.log('🔄 Nouveaux plans récupérés:', newPlans);
+        console.log('🔄 Nombre de plans:', newPlans.length);
+
+        // Forcer la mise à jour en créant un nouveau tableau
+        setLocalPaymentPlans([...newPlans]);
+
         console.log('✅ Données de paiement rechargées avec succès:', {
           saleId: sale.id,
-          plansCount: updatedSale.payment_plans?.length || 0,
-          plans: updatedSale.payment_plans
+          plansCount: newPlans.length,
+          plans: newPlans
         });
 
-        // Déclencher le rafraîchissement de la liste parent si disponible
+        // IMPORTANT: Déclencher le rafraîchissement de la liste parent APRÈS la mise à jour locale
         if (onRefresh) {
           console.log('🔄 Déclenchement du rafraîchissement parent...');
-          onRefresh();
+          await onRefresh();
         }
       } else {
         console.warn('⚠️ Aucune donnée de vente retournée lors du rechargement');
@@ -411,8 +420,8 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
                           </div>
                           <div className="flex items-center justify-end space-x-2">
                             {getPaymentStatusBadge(plan.statut)}
-                            {/* Afficher le bouton Modifier seulement pour les paiements réels (non virtuels) */}
-                            {!plan.id.startsWith('virtual-') && (
+                            {/* Bouton Modifier - Seulement pour les paiements réels */}
+                            {!plan.id.startsWith('virtual-') && plan.montant_paye > 0 && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -509,15 +518,13 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
 
       {/* Modal de modification de paiement */}
       {editingPayment && (
-        <EditPaymentModal
+        <ModifyPaymentModal
           sale={sale}
-          paymentPlan={editingPayment}
+          payment={editingPayment}
           onClose={() => setEditingPayment(null)}
-          onPaymentUpdated={async () => {
+          onSuccess={async () => {
             setEditingPayment(null);
-            // Recharger les données locales du modal
             await reloadPaymentData();
-            // Recharger les données de la liste principale si la fonction est disponible
             if (onRefresh) {
               onRefresh();
             }

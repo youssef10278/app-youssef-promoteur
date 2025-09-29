@@ -227,8 +227,8 @@ router.get('/plans/sale/:saleId', asyncHandler(async (req: Request, res: Respons
   res.json(response);
 }));
 
-// Mettre à jour un plan de paiement
-router.put('/plans/:id', asyncHandler(async (req: Request, res: Response) => {
+// Mettre à jour un plan de paiement (métadonnées uniquement)
+router.put('/plans/:id/metadata', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const updateData = req.body;
 
@@ -266,7 +266,7 @@ router.put('/plans/:id', asyncHandler(async (req: Request, res: Response) => {
   values.push(id, req.user!.userId);
 
   const result = await query(
-    `UPDATE payment_plans 
+    `UPDATE payment_plans
      SET ${updateFields.join(', ')}
      WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1}
      RETURNING *`,
@@ -281,6 +281,8 @@ router.put('/plans/:id', asyncHandler(async (req: Request, res: Response) => {
 
   res.json(response);
 }));
+
+// Modifier un paiement existant (NOUVEAU) - SUPPRIMÉ (remplacé par l'endpoint plus complet ci-dessous)
 
 // ==================== PAIEMENTS ====================
 
@@ -465,52 +467,70 @@ router.put('/plans/:planId', asyncHandler(async (req: Request, res: Response) =>
   const { planId } = req.params;
   const paymentData = req.body;
 
+  console.log('🔧 [PUT /plans/:planId] START');
+  console.log('🔧 Plan ID:', planId);
+  console.log('🔧 User ID:', req.user!.userId);
+  console.log('🔧 Payment Data:', JSON.stringify(paymentData, null, 2));
+
   // Vérifier que le plan appartient à l'utilisateur
   const planCheck = await query(
     'SELECT id, sale_id FROM payment_plans WHERE id = $1 AND user_id = $2',
     [planId, req.user!.userId]
   );
 
+  console.log('🔧 Plan check result:', planCheck.rows);
+
   if (planCheck.rows.length === 0) {
+    console.error('❌ Plan de paiement non trouvé');
     throw createError('Plan de paiement non trouvé', 404);
   }
 
   const plan = planCheck.rows[0];
+  console.log('🔧 Plan found:', plan);
 
   // Mettre à jour le plan de paiement avec tous les champs nécessaires
-  await query(
+  const updateParams = [
+    paymentData.montant_prevu || paymentData.montant_paye,
+    paymentData.montant_paye,
+    paymentData.date_prevue || paymentData.date_paiement,
+    paymentData.date_paiement,
+    paymentData.mode_paiement,
+    paymentData.montant_espece || 0,
+    paymentData.montant_cheque || 0,
+    paymentData.montant_declare || 0,
+    paymentData.montant_non_declare || 0,
+    paymentData.description || paymentData.notes,
+    paymentData.notes,
+    planId
+  ];
+
+  console.log('🔧 Update params:', updateParams);
+
+  const updateResult = await query(
     `UPDATE payment_plans
      SET montant_prevu = $1, montant_paye = $2, date_prevue = $3, date_paiement = $4,
          mode_paiement = $5, montant_espece = $6, montant_cheque = $7,
          montant_declare = $8, montant_non_declare = $9,
          description = $10, notes = $11, statut = 'paye', updated_at = NOW()
-     WHERE id = $12`,
-    [
-      paymentData.montant_prevu || paymentData.montant_paye,
-      paymentData.montant_paye,
-      paymentData.date_prevue || paymentData.date_paiement,
-      paymentData.date_paiement,
-      paymentData.mode_paiement,
-      paymentData.montant_espece || 0,
-      paymentData.montant_cheque || 0,
-      paymentData.montant_declare || 0,
-      paymentData.montant_non_declare || 0,
-      paymentData.description || paymentData.notes,
-      paymentData.notes,
-      planId
-    ]
+     WHERE id = $12
+     RETURNING *`,
+    updateParams
   );
 
-  // Récupérer le plan mis à jour
-  const updatedPlanResult = await query(
-    'SELECT * FROM payment_plans WHERE id = $1',
-    [planId]
-  );
+  console.log('🔧 Update result rowCount:', updateResult.rowCount);
+  console.log('🔧 Update result rows:', updateResult.rows);
 
-  const updatedPlan = updatedPlanResult.rows[0];
+  if (updateResult.rowCount === 0) {
+    console.error('❌ Aucune ligne mise à jour');
+    throw createError('Échec de la mise à jour du paiement', 500);
+  }
+
+  const updatedPlan = updateResult.rows[0];
+  console.log('✅ Plan updated:', updatedPlan);
 
   // Si c'est l'avance initiale (numero_echeance = 1), mettre à jour aussi les champs de la vente
   if (updatedPlan.numero_echeance === 1 && updatedPlan.description?.includes('Avance initiale')) {
+    console.log('🔧 Updating sale initial advance...');
     const totalAvance = paymentData.montant_paye;
     await query(
       `UPDATE sales
@@ -527,6 +547,7 @@ router.put('/plans/:planId', asyncHandler(async (req: Request, res: Response) =>
         plan.sale_id
       ]
     );
+    console.log('✅ Sale updated');
   }
 
   const response: ApiResponse = {
@@ -542,6 +563,9 @@ router.put('/plans/:planId', asyncHandler(async (req: Request, res: Response) =>
     },
     message: 'Plan de paiement modifié avec succès'
   };
+
+  console.log('✅ [PUT /plans/:planId] SUCCESS - Sending response');
+  console.log('🔧 Response data:', JSON.stringify(response.data, null, 2));
 
   res.json(response);
 }));

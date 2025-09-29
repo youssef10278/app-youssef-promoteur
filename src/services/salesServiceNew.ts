@@ -95,14 +95,24 @@ export class SalesServiceNew {
    */
   static async getSaleById(saleId: string): Promise<SaleWithPayments | null> {
     try {
+      console.log('🔧 [getSaleById] START - Sale ID:', saleId);
+
       const response = await apiClient.get(`/sales/${saleId}`);
       const sale = response.data;
 
-      if (!sale) return null;
+      console.log('🔧 [getSaleById] Sale data:', sale);
+
+      if (!sale) {
+        console.warn('⚠️ [getSaleById] No sale found');
+        return null;
+      }
 
       // Récupérer les plans de paiement
+      console.log('🔧 [getSaleById] Fetching payment plans...');
       const paymentPlansResponse = await apiClient.get(`/payments/plans/sale/${saleId}`);
       const paymentPlans = paymentPlansResponse.data || [];
+
+      console.log('🔧 [getSaleById] Payment plans:', paymentPlans);
 
       // Enrichir chaque plan avec les chèques et paiements
       const enrichedPaymentPlans = [];
@@ -110,24 +120,29 @@ export class SalesServiceNew {
         try {
           const checksResponse = await apiClient.get(`/checks?payment_plan_id=${plan.id}`);
           const paymentsResponse = await apiClient.get(`/payments/history/sale/${saleId}`);
-          
+
           enrichedPaymentPlans.push({
             ...plan,
             payment_checks: checksResponse.data || [],
             payments: paymentsResponse.data || []
           });
         } catch (error) {
-          console.warn(`Erreur lors de la récupération des détails pour le plan ${plan.id}:`, error);
+          console.warn(`⚠️ Erreur lors de la récupération des détails pour le plan ${plan.id}:`, error);
           enrichedPaymentPlans.push(plan);
         }
       }
 
-      return {
+      console.log('🔧 [getSaleById] Enriched payment plans:', enrichedPaymentPlans);
+
+      const result = {
         ...sale,
         payment_plans: enrichedPaymentPlans
       };
+
+      console.log('✅ [getSaleById] SUCCESS - Returning:', result);
+      return result;
     } catch (error) {
-      console.error('Erreur lors de la récupération de la vente:', error);
+      console.error('❌ [getSaleById] ERROR:', error);
       throw error;
     }
   }
@@ -236,66 +251,8 @@ export class SalesServiceNew {
     }
   }
 
-  /**
-   * Modifier un paiement existant
-   */
-  static async updatePayment(planId: string, paymentData: PaymentFormData): Promise<PaymentPlan> {
-    try {
-      console.log('Updating payment:', { planId, paymentData });
-
-      // Préparer les données pour l'API backend
-      const apiData = {
-        montant_paye: paymentData.montant_paye,
-        montant_prevu: paymentData.montant_paye, // Synchroniser montant prévu avec montant payé
-        montant_declare: paymentData.montant_declare || 0,
-        montant_non_declare: paymentData.montant_non_declare || 0,
-        date_paiement: paymentData.date_paiement,
-        date_prevue: paymentData.date_paiement, // Synchroniser les dates
-        mode_paiement: paymentData.mode_paiement,
-        montant_espece: paymentData.montant_espece || 0,
-        montant_cheque: paymentData.montant_cheque || 0,
-        notes: paymentData.notes || '',
-        description: paymentData.notes || `Paiement modifié le ${new Date().toLocaleDateString()}`
-      };
-
-      console.log('Sending API data:', apiData);
-
-      // IMPORTANT: Utiliser l'appel direct pour éviter la confusion entre les routes
-      // /payments/plans/:id (métadonnées) vs /payments/plans/:planId (paiements complets)
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
-      const authToken = localStorage.getItem('auth_token');
-
-      if (!authToken) {
-        throw new Error('Token d\'authentification manquant');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/payments/plans/${planId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify(apiData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Erreur HTTP ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Erreur lors de la modification du paiement');
-      }
-
-      console.log('Payment updated successfully:', result.data);
-      return result.data;
-    } catch (error) {
-      console.error('Erreur lors de la modification du paiement:', error);
-      throw error;
-    }
-  }
+  // Note: La modification des paiements se fait maintenant directement via apiClient.put()
+  // dans le composant ModifyPaymentModal pour plus de simplicité
 
   // ==================== INVENTAIRE ====================
 

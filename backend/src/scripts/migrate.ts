@@ -135,6 +135,8 @@ const createTables = async () => {
         date_prevue DATE NOT NULL,
         montant_prevu DECIMAL NOT NULL,
         montant_paye DECIMAL DEFAULT 0,
+        montant_declare DECIMAL DEFAULT 0,
+        montant_non_declare DECIMAL DEFAULT 0,
         date_paiement TIMESTAMP WITH TIME ZONE,
         mode_paiement payment_mode,
         montant_espece DECIMAL DEFAULT 0,
