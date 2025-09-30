@@ -56,7 +56,12 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
   const reloadPaymentData = async () => {
     try {
       console.log('🔄 [SaleDetailsModal] Rechargement des données de paiement pour la vente:', sale.id);
-      console.log('🔄 Plans actuels avant rechargement:', localPaymentPlans);
+      console.log('🔄 Plans actuels avant rechargement:', localPaymentPlans.map(p => ({
+        id: p.id,
+        numero_echeance: p.numero_echeance,
+        montant_paye: p.montant_paye,
+        mode_paiement: p.mode_paiement
+      })));
 
       // Récupérer la vente complète avec tous ses détails
       const updatedSale = await SalesServiceNew.getSaleById(sale.id);
@@ -65,7 +70,15 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
 
       if (updatedSale) {
         const newPlans = updatedSale.payment_plans || [];
-        console.log('🔄 Nouveaux plans récupérés:', newPlans);
+        console.log('🔄 Nouveaux plans récupérés:', newPlans.map(p => ({
+          id: p.id,
+          numero_echeance: p.numero_echeance,
+          montant_paye: p.montant_paye,
+          mode_paiement: p.mode_paiement,
+          date_paiement: p.date_paiement,
+          montant_declare: p.montant_declare,
+          montant_non_declare: p.montant_non_declare
+        })));
         console.log('🔄 Nombre de plans:', newPlans.length);
 
         // Forcer la mise à jour en créant un nouveau tableau
@@ -574,11 +587,21 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
           payment={editingPayment}
           onClose={() => setEditingPayment(null)}
           onSuccess={async () => {
-            setEditingPayment(null);
+            console.log('🔄 [SaleDetailsModal] onSuccess appelé pour le paiement:', editingPayment?.id);
+            console.log('🔄 [SaleDetailsModal] Numéro d\'échéance:', editingPayment?.numero_echeance);
+            
+            // Recharger les données AVANT de fermer le modal
             await reloadPaymentData();
+            
+            // Rafraîchir la liste parent
             if (onRefresh) {
-              onRefresh();
+              console.log('🔄 [SaleDetailsModal] Rafraîchissement de la liste parent...');
+              await onRefresh();
             }
+            
+            // Fermer le modal APRÈS le rechargement
+            console.log('🚪 [SaleDetailsModal] Fermeture du modal de modification');
+            setEditingPayment(null);
           }}
         />
       )}

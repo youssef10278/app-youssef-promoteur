@@ -139,14 +139,51 @@ router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
+  // ✅ FIX: Calculer le montant encaissé en incluant les payment_plans
+  // Stratégie: Pour chaque vente, calculer le montant total encaissé
+  // en vérifiant s'il existe un payment_plan #1 pour éviter la double comptabilisation
   const result = await query(
     `SELECT
        COUNT(*) as total_ventes,
        COUNT(CASE WHEN s.statut = 'termine' THEN 1 END) as ventes_finalisees,
        COUNT(CASE WHEN s.statut = 'en_cours' THEN 1 END) as ventes_en_cours,
        COALESCE(SUM(s.prix_total), 0) as chiffre_affaires_total,
-       COALESCE(SUM(s.avance_total), 0) as montant_encaisse,
-       COALESCE(SUM(s.prix_total - s.avance_total), 0) as montant_restant
+       COALESCE(SUM(
+         CASE
+           -- Si un payment_plan #1 existe, utiliser UNIQUEMENT les payment_plans
+           WHEN EXISTS (
+             SELECT 1 FROM payment_plans pp
+             WHERE pp.sale_id = s.id AND pp.numero_echeance = 1
+           ) THEN (
+             SELECT COALESCE(SUM(montant_paye), 0)
+             FROM payment_plans
+             WHERE sale_id = s.id
+           )
+           -- Sinon, utiliser l'avance de la table sales + les payment_plans
+           ELSE s.avance_total + (
+             SELECT COALESCE(SUM(montant_paye), 0)
+             FROM payment_plans
+             WHERE sale_id = s.id
+           )
+         END
+       ), 0) as montant_encaisse,
+       COALESCE(SUM(s.prix_total), 0) - COALESCE(SUM(
+         CASE
+           WHEN EXISTS (
+             SELECT 1 FROM payment_plans pp
+             WHERE pp.sale_id = s.id AND pp.numero_echeance = 1
+           ) THEN (
+             SELECT COALESCE(SUM(montant_paye), 0)
+             FROM payment_plans
+             WHERE sale_id = s.id
+           )
+           ELSE s.avance_total + (
+             SELECT COALESCE(SUM(montant_paye), 0)
+             FROM payment_plans
+             WHERE sale_id = s.id
+           )
+         END
+       ), 0) as montant_restant
      FROM sales s
      ${whereClause}`,
     params

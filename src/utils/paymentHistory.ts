@@ -36,32 +36,33 @@ export function createVirtualInitialPaymentPlan(sale: Sale): PaymentPlan | null 
 
 /**
  * Enrichit les payment_plans d'une vente avec l'avance initiale virtuelle si nécessaire
+ *
+ * CORRECTION DU BUG: Ne crée un paiement virtuel QUE si aucun paiement #1 n'existe dans la base.
+ * Peu importe la description du paiement #1, s'il existe, on ne crée pas de virtuel.
  */
 export function enrichPaymentPlansWithInitialAdvance(sale: Sale, paymentPlans: PaymentPlan[] = []): PaymentPlan[] {
-  // Vérifier si un payment_plan pour l'avance initiale existe déjà
-  const hasInitialPaymentPlan = paymentPlans.some(plan => 
-    plan.numero_echeance === 1 && plan.description?.includes('Avance initiale')
-  );
-  
-  // Si l'avance initiale existe déjà dans les payment_plans, retourner tel quel
+  // ✅ FIX: Vérifier si un payment_plan avec numero_echeance = 1 existe déjà (quelle que soit sa description)
+  const hasInitialPaymentPlan = paymentPlans.some(plan => plan.numero_echeance === 1);
+
+  // Si un paiement #1 existe déjà dans les payment_plans (réel ou virtuel), retourner tel quel
   if (hasInitialPaymentPlan) {
     return paymentPlans;
   }
-  
-  // Créer un payment_plan virtuel pour l'avance initiale
+
+  // Créer un payment_plan virtuel pour l'avance initiale UNIQUEMENT s'il n'existe pas de paiement #1
   const virtualInitialPlan = createVirtualInitialPaymentPlan(sale);
-  
+
   // Si pas d'avance, retourner les payment_plans existants
   if (!virtualInitialPlan) {
     return paymentPlans;
   }
-  
+
   // Renuméroter les payment_plans existants pour faire de la place au premier
   const renumberedPlans = paymentPlans.map(plan => ({
     ...plan,
     numero_echeance: plan.numero_echeance + 1
   }));
-  
+
   // Retourner l'avance initiale + les autres payment_plans
   return [virtualInitialPlan, ...renumberedPlans];
 }

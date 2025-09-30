@@ -52,6 +52,25 @@ export class AnalyticsServiceNew {
       const salesResponse = await apiClient.get(`/sales/project/${projectId}`);
       const sales = salesResponse.data || [];
 
+      // ✅ FIX: Récupérer les payment_plans pour chaque vente
+      const salesWithPaymentPlans = await Promise.all(
+        sales.map(async (sale: any) => {
+          try {
+            const paymentPlansResponse = await apiClient.get(`/payments/plans/sale/${sale.id}`);
+            return {
+              ...sale,
+              payment_plans: paymentPlansResponse.data || []
+            };
+          } catch (error) {
+            console.warn(`Erreur lors de la récupération des payment_plans pour la vente ${sale.id}:`, error);
+            return {
+              ...sale,
+              payment_plans: []
+            };
+          }
+        })
+      );
+
       // Récupérer les détails du projet pour obtenir les unités
       const projectResponse = await apiClient.get(`/projects/${projectId}`);
       const project = projectResponse.data;
@@ -72,7 +91,7 @@ export class AnalyticsServiceNew {
         }
       }
 
-      return this.calculateAnalytics(sales, projectUnits);
+      return this.calculateAnalytics(salesWithPaymentPlans, projectUnits);
     } catch (error) {
       console.error('Erreur lors de la récupération des analytics:', error);
       throw error;
@@ -130,11 +149,53 @@ export class AnalyticsServiceNew {
         garages.ca_total += prixTotal;
       }
 
-      // Calculer les montants encaissés basés sur les avances réelles
-      const montantEncaisseReel = avanceDeclare + avanceNonDeclare;
+      // ✅ FIX: Calculer les montants encaissés en incluant TOUS les paiements
+      // 1. Avance initiale (stockée dans la table sales)
+      const avanceInitiale = avanceDeclare + avanceNonDeclare;
+
+      // 2. Paiements supplémentaires (stockés dans payment_plans)
+      let paiementsSupplementaires = 0;
+      let paiementsSupplementairesDeclare = 0;
+      let paiementsSupplementairesNonDeclare = 0;
+
+      if (sale.payment_plans && Array.isArray(sale.payment_plans)) {
+        sale.payment_plans.forEach((plan: any) => {
+          const montantPaye = parseFloat(plan.montant_paye?.toString() || '0');
+          const montantDeclare = parseFloat(plan.montant_declare?.toString() || '0');
+          const montantNonDeclare = parseFloat(plan.montant_non_declare?.toString() || '0');
+
+          // Additionner tous les paiements (y compris le paiement #1 s'il existe)
+          paiementsSupplementaires += montantPaye;
+          paiementsSupplementairesDeclare += montantDeclare;
+          paiementsSupplementairesNonDeclare += montantNonDeclare;
+        });
+      }
+
+      // 3. Total encaissé = Avance initiale + Paiements supplémentaires
+      // Note: Si le paiement #1 existe dans payment_plans, il sera compté deux fois
+      // (une fois dans avance_declare/non_declare et une fois dans payment_plans)
+      // Pour éviter la double comptabilisation, on vérifie s'il y a un paiement #1
+      const hasPaymentPlan1 = sale.payment_plans?.some((plan: any) => plan.numero_echeance === 1);
+
+      let montantEncaisseReel;
+      let totalDeclare;
+      let totalNonDeclare;
+
+      if (hasPaymentPlan1) {
+        // Si le paiement #1 existe dans payment_plans, utiliser UNIQUEMENT les payment_plans
+        montantEncaisseReel = paiementsSupplementaires;
+        totalDeclare = paiementsSupplementairesDeclare;
+        totalNonDeclare = paiementsSupplementairesNonDeclare;
+      } else {
+        // Sinon, utiliser l'avance initiale + les paiements supplémentaires
+        montantEncaisseReel = avanceInitiale + paiementsSupplementaires;
+        totalDeclare = avanceDeclare + paiementsSupplementairesDeclare;
+        totalNonDeclare = avanceNonDeclare + paiementsSupplementairesNonDeclare;
+      }
+
       montant_encaisse_total += montantEncaisseReel;
-      montant_declare_total += avanceDeclare;
-      montant_non_declare_total += avanceNonDeclare;
+      montant_declare_total += totalDeclare;
+      montant_non_declare_total += totalNonDeclare;
 
       // Ajouter aux CA encaissés par type
       if (sale.type_propriete === 'appartement') {
@@ -200,6 +261,25 @@ export class AnalyticsServiceNew {
       const salesResponse = await apiClient.get('/sales');
       const sales = salesResponse.data || [];
 
+      // ✅ FIX: Récupérer les payment_plans pour chaque vente
+      const salesWithPaymentPlans = await Promise.all(
+        sales.map(async (sale: any) => {
+          try {
+            const paymentPlansResponse = await apiClient.get(`/payments/plans/sale/${sale.id}`);
+            return {
+              ...sale,
+              payment_plans: paymentPlansResponse.data || []
+            };
+          } catch (error) {
+            console.warn(`Erreur lors de la récupération des payment_plans pour la vente ${sale.id}:`, error);
+            return {
+              ...sale,
+              payment_plans: []
+            };
+          }
+        })
+      );
+
       // Calculer les unités totales pour tous les projets avec conversion des types
       const projectUnits = [];
       projects.forEach((project: any) => {
@@ -216,7 +296,7 @@ export class AnalyticsServiceNew {
         }
       });
 
-      return this.calculateAnalytics(sales, projectUnits);
+      return this.calculateAnalytics(salesWithPaymentPlans, projectUnits);
     } catch (error) {
       console.error('Erreur lors de la récupération des analytics globales:', error);
       throw error;

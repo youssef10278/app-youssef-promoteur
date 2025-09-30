@@ -119,6 +119,8 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
     try {
       console.log('🔧 [ModifyPaymentModal] Envoi de la modification:', {
         paymentId: payment.id,
+        paymentNumeroEcheance: payment.numero_echeance,
+        saleId: sale.id,
         formData
       });
 
@@ -134,9 +136,13 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
         notes: formData.notes
       };
 
+      console.log('🔧 [ModifyPaymentModal] Données envoyées à l\'API:', paymentData);
+      console.log('🔧 [ModifyPaymentModal] URL API:', `/payments/plans/${payment.id}`);
+
       const response = await apiClient.put(`/payments/plans/${payment.id}`, paymentData);
 
-      console.log('✅ [ModifyPaymentModal] Réponse API:', response);
+      console.log('✅ [ModifyPaymentModal] Réponse API complète:', response);
+      console.log('✅ [ModifyPaymentModal] Données retournées:', response.data);
 
       toast({
         title: "Paiement modifié",
@@ -144,9 +150,12 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
       });
 
       // Appeler onSuccess AVANT de fermer le modal pour permettre le rechargement
+      console.log('🔄 [ModifyPaymentModal] Appel de onSuccess() pour recharger les données...');
       await onSuccess();
+      console.log('✅ [ModifyPaymentModal] onSuccess() terminé');
 
       // Fermer le modal après le rechargement
+      console.log('🚪 [ModifyPaymentModal] Fermeture du modal');
       onClose();
     } catch (error: any) {
       console.error('❌ [ModifyPaymentModal] Erreur lors de la modification du paiement:', error);
