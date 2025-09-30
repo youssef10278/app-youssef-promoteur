@@ -47,21 +47,36 @@ export class SalesServiceNew {
           const paymentPlansResponse = await apiClient.get(`/payments/plans/sale/${sale.id}`);
           const paymentPlans = paymentPlansResponse.data || [];
 
-          // Pour chaque plan de paiement, récupérer les chèques et paiements
+          // Récupérer tous les chèques de la vente une seule fois
+          let allChecks = [];
+          try {
+            const checksResponse = await apiClient.get(`/checks?sale_id=${sale.id}`);
+            allChecks = checksResponse.data || [];
+            console.log('🔧 Chèques récupérés pour la vente:', allChecks.length);
+          } catch (error) {
+            console.warn('Erreur lors de la récupération des chèques:', error);
+          }
+
+          // Pour chaque plan de paiement, récupérer les paiements
           const enrichedPaymentPlans = [];
           for (const plan of paymentPlans) {
             try {
-              // Récupérer les chèques pour ce plan
-              const checksResponse = await apiClient.get(`/checks?payment_plan_id=${plan.id}`);
-              const checks = checksResponse.data || [];
-
               // Récupérer les paiements pour ce plan
               const paymentsResponse = await apiClient.get(`/payments/history/sale/${sale.id}`);
               const payments = paymentsResponse.data || [];
 
+              // Filtrer les chèques pour ce plan spécifique
+              // Pour l'instant, on associe tous les chèques de la vente à chaque plan
+              // TODO: Implémenter une logique plus précise si nécessaire
+              const planChecks = allChecks.filter(check => {
+                // Si c'est l'avance initiale (numero_echeance = 1), inclure tous les chèques
+                // Sinon, ne pas inclure de chèques pour les échéances suivantes
+                return plan.numero_echeance === 1;
+              });
+
               enrichedPaymentPlans.push({
                 ...plan,
-                payment_checks: checks,
+                payment_checks: planChecks,
                 payments: payments
               });
             } catch (error) {
@@ -114,16 +129,32 @@ export class SalesServiceNew {
 
       console.log('🔧 [getSaleById] Payment plans:', paymentPlans);
 
+      // Récupérer tous les chèques de la vente une seule fois
+      let allChecks = [];
+      try {
+        const checksResponse = await apiClient.get(`/checks?sale_id=${saleId}`);
+        allChecks = checksResponse.data || [];
+        console.log('🔧 Chèques récupérés pour la vente:', allChecks.length);
+      } catch (error) {
+        console.warn('Erreur lors de la récupération des chèques:', error);
+      }
+
       // Enrichir chaque plan avec les chèques et paiements
       const enrichedPaymentPlans = [];
       for (const plan of paymentPlans) {
         try {
-          const checksResponse = await apiClient.get(`/checks?payment_plan_id=${plan.id}`);
           const paymentsResponse = await apiClient.get(`/payments/history/sale/${saleId}`);
+
+          // Filtrer les chèques pour ce plan spécifique
+          const planChecks = allChecks.filter(check => {
+            // Si c'est l'avance initiale (numero_echeance = 1), inclure tous les chèques
+            // Sinon, ne pas inclure de chèques pour les échéances suivantes
+            return plan.numero_echeance === 1;
+          });
 
           enrichedPaymentPlans.push({
             ...plan,
-            payment_checks: checksResponse.data || [],
+            payment_checks: planChecks,
             payments: paymentsResponse.data || []
           });
         } catch (error) {

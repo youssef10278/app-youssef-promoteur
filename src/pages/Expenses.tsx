@@ -18,6 +18,7 @@ import CashForm from '@/components/expense/CashForm';
 import { ExpenseAnalyticsComponent } from '@/components/expenses/ExpenseAnalytics';
 import { ExpenseFilters as ExpenseFiltersComponent, ExpenseFiltersState } from '@/components/expenses/ExpenseFilters';
 import { ExpenseList } from '@/components/expenses/ExpenseList';
+import { ModifyExpenseModal } from '@/components/expenses/ModifyExpenseModal';
 import { ExpenseService } from '@/services/expenseService';
 import { ProjectSelector } from '@/components/common/ProjectSelector';
 import { Project, Expense, ExpenseFormData, CheckData, PAYMENT_MODES, ExpenseFilters } from '@/types/expense';
@@ -33,6 +34,8 @@ const Expenses = () => {
   const [isLoadingExpenses, setIsLoadingExpenses] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const { toast } = useToast();
 
   // États pour les filtres
@@ -381,6 +384,23 @@ const Expenses = () => {
     setValidationErrors([]);
   };
 
+  // Handlers pour la modification des dépenses
+  const handleEditExpense = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setIsModifyModalOpen(true);
+  };
+
+  const handleModifySuccess = () => {
+    fetchExpenses();
+    setIsModifyModalOpen(false);
+    setSelectedExpense(null);
+  };
+
+  const handleModifyClose = () => {
+    setIsModifyModalOpen(false);
+    setSelectedExpense(null);
+  };
+
 
 
   if (authLoading || isLoading) {
@@ -714,10 +734,22 @@ const Expenses = () => {
             <ExpenseList
               expenses={filteredExpenses}
               isLoading={isLoadingExpenses}
+              onEdit={handleEditExpense}
             />
           </div>
         </div>
       </main>
+
+      {/* Modal de modification des dépenses */}
+      {selectedExpense && (
+        <ModifyExpenseModal
+          expense={selectedExpense}
+          projects={projects}
+          isOpen={isModifyModalOpen}
+          onClose={handleModifyClose}
+          onSuccess={handleModifySuccess}
+        />
+      )}
     </div>
   );
 };

@@ -12,7 +12,7 @@ router.use(authenticateToken);
 
 // Obtenir tous les chèques de l'utilisateur
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
-  const { type, statut, project_id } = req.query;
+  const { type, statut, project_id, payment_plan_id } = req.query;
 
   let whereConditions = ['c.user_id = $1'];
   const queryParams = [req.user!.userId];
@@ -33,6 +33,12 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   if (project_id) {
     whereConditions.push(`c.project_id = $${paramIndex}`);
     queryParams.push(project_id as string);
+    paramIndex++;
+  }
+
+  if (payment_plan_id) {
+    whereConditions.push(`c.payment_plan_id = $${paramIndex}`);
+    queryParams.push(payment_plan_id as string);
     paramIndex++;
   }
 
