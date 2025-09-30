@@ -133,14 +133,75 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const validatedData = validate(updateProjectSchema, req.body);
 
-  // Vérifier que le projet appartient à l'utilisateur
+  // Vérifier que le projet appartient à l'utilisateur et récupérer les données actuelles
   const existingProject = await query(
-    'SELECT id FROM projects WHERE id = $1 AND user_id = $2',
+    'SELECT id, nombre_lots, nombre_appartements, nombre_garages FROM projects WHERE id = $1 AND user_id = $2',
     [id, req.user!.userId]
   );
 
   if (existingProject.rows.length === 0) {
     throw createError('Projet non trouvé', 404);
+  }
+
+  const currentProject = existingProject.rows[0];
+
+  // Vérifier s'il y a des modifications des nombres d'unités
+  const hasUnitChanges = 
+    (validatedData.nombre_lots !== undefined && validatedData.nombre_lots !== currentProject.nombre_lots) ||
+    (validatedData.nombre_appartements !== undefined && validatedData.nombre_appartements !== currentProject.nombre_appartements) ||
+    (validatedData.nombre_garages !== undefined && validatedData.nombre_garages !== currentProject.nombre_garages);
+
+  if (hasUnitChanges) {
+    // Vérifier s'il y a des ventes existantes pour ce projet
+    const salesCheck = await query(
+      'SELECT COUNT(*) as total_sales FROM sales WHERE project_id = $1',
+      [id]
+    );
+
+    const totalSales = parseInt(salesCheck.rows[0].total_sales);
+
+    if (totalSales > 0) {
+      // Récupérer les détails des ventes pour un message d'erreur plus informatif
+      const salesDetails = await query(
+        `SELECT 
+           COUNT(CASE WHEN type_propriete = 'appartement' THEN 1 END) as appartements_vendus,
+           COUNT(CASE WHEN type_propriete = 'garage' THEN 1 END) as garages_vendus
+         FROM sales 
+         WHERE project_id = $1`,
+        [id]
+      );
+
+      const sales = salesDetails.rows[0];
+      const appartementsVendus = parseInt(sales.appartements_vendus);
+      const garagesVendus = parseInt(sales.garages_vendus);
+
+      // Vérifier les incohérences spécifiques
+      const newAppartements = validatedData.nombre_appartements !== undefined ? validatedData.nombre_appartements : currentProject.nombre_appartements;
+      const newGarages = validatedData.nombre_garages !== undefined ? validatedData.nombre_garages : currentProject.nombre_garages;
+      const newLots = validatedData.nombre_lots !== undefined ? validatedData.nombre_lots : currentProject.nombre_lots;
+
+      let errorMessage = 'Impossible de modifier le nombre d\'unités car des ventes existent déjà :\n';
+      let hasInconsistency = false;
+
+      if (appartementsVendus > 0 && newAppartements < appartementsVendus) {
+        errorMessage += `• ${appartementsVendus} appartement(s) vendu(s) mais seulement ${newAppartements} disponible(s)\n`;
+        hasInconsistency = true;
+      }
+
+      if (garagesVendus > 0 && newGarages < garagesVendus) {
+        errorMessage += `• ${garagesVendus} garage(s) vendu(s) mais seulement ${newGarages} disponible(s)\n`;
+        hasInconsistency = true;
+      }
+
+      if (hasInconsistency) {
+        errorMessage += '\nSolutions possibles :\n';
+        errorMessage += '• Annuler les ventes concernées avant de modifier le projet\n';
+        errorMessage += '• Créer un nouveau projet avec la nouvelle configuration\n';
+        errorMessage += '• Augmenter le nombre d\'unités au lieu de le diminuer';
+
+        throw createError(errorMessage, 400);
+      }
+    }
   }
 
   // Construire la requête de mise à jour dynamiquement

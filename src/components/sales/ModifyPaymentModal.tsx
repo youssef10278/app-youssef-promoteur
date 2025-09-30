@@ -18,13 +18,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   CreditCard, 
   Banknote, 
   Building2, 
   DollarSign,
   FileText,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { Sale, PaymentPlan } from '@/types/sale-new';
 import { formatAmount } from '@/utils/payments';

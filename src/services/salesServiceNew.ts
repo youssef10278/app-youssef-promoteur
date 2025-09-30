@@ -66,12 +66,9 @@ export class SalesServiceNew {
               const payments = paymentsResponse.data || [];
 
               // Filtrer les chèques pour ce plan spécifique
-              // Pour l'instant, on associe tous les chèques de la vente à chaque plan
-              // TODO: Implémenter une logique plus précise si nécessaire
               const planChecks = allChecks.filter(check => {
-                // Si c'est l'avance initiale (numero_echeance = 1), inclure tous les chèques
-                // Sinon, ne pas inclure de chèques pour les échéances suivantes
-                return plan.numero_echeance === 1;
+                // Associer les chèques au plan de paiement correspondant
+                return check.payment_plan_id === plan.id;
               });
 
               enrichedPaymentPlans.push({
@@ -147,9 +144,8 @@ export class SalesServiceNew {
 
           // Filtrer les chèques pour ce plan spécifique
           const planChecks = allChecks.filter(check => {
-            // Si c'est l'avance initiale (numero_echeance = 1), inclure tous les chèques
-            // Sinon, ne pas inclure de chèques pour les échéances suivantes
-            return plan.numero_echeance === 1;
+            // Associer les chèques au plan de paiement correspondant
+            return check.payment_plan_id === plan.id;
           });
 
           enrichedPaymentPlans.push({

@@ -119,12 +119,27 @@ const EditProject = () => {
       });
 
       const errorMessage = error.response?.data?.message || error.message || "Erreur inconnue";
+      
+      // Vérifier si c'est une erreur de validation des unités
+      const isUnitValidationError = error.response?.status === 400 && 
+        errorMessage.includes('Impossible de modifier le nombre d\'unités');
 
-      toast({
-        title: "Erreur",
-        description: `Impossible de modifier le projet: ${errorMessage}`,
-        variant: "destructive",
-      });
+      if (isUnitValidationError) {
+        // Afficher un toast avec un message plus détaillé
+        toast({
+          title: "Modification impossible",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 10000, // Afficher plus longtemps pour permettre la lecture
+        });
+      } else {
+        // Erreur générale
+        toast({
+          title: "Erreur",
+          description: `Impossible de modifier le projet: ${errorMessage}`,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
