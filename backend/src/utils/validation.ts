@@ -75,7 +75,7 @@ export const createExpenseSchema = Joi.object({
   nom: Joi.string().min(2).max(200).required(),
   montant_declare: Joi.number().min(0).default(0),
   montant_non_declare: Joi.number().min(0).default(0),
-  methode_paiement: Joi.string().valid('cheque', 'espece', 'cheque_et_espece').required(),
+  mode_paiement: Joi.string().valid('cheque', 'espece', 'cheque_espece', 'virement').required(),
   description: Joi.string().max(1000).optional().allow('')
 });
 

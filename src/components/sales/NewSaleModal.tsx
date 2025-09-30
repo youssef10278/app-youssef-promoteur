@@ -175,6 +175,27 @@ export function NewSaleModal({ isOpen, onClose, selectedProject, onSaleCreated }
         if (formData.premier_paiement.montant_non_declare < 0) {
           newErrors.montant_non_declare = 'L\'autre montant ne peut pas être négatif';
         }
+        
+        // Validation des chèques
+        const isChequeMode = formData.premier_paiement.mode_paiement === 'cheque' || formData.premier_paiement.mode_paiement === 'cheque_espece';
+        const hasCheques = formData.premier_paiement.cheques && formData.premier_paiement.cheques.length > 0;
+        
+        if (isChequeMode) {
+          // Vérifier qu'au moins un chèque est ajouté
+          if (!hasCheques) {
+            newErrors.cheques = 'Le mode de paiement "chèque" nécessite l\'ajout d\'au moins un chèque';
+          } else {
+            // Vérifier que le total des chèques correspond au montant attendu
+            const totalCheques = formData.premier_paiement.cheques.reduce((sum, cheque) => sum + (cheque.montant || 0), 0);
+            const montantChequeAttendu = formData.premier_paiement.mode_paiement === 'cheque' 
+              ? formData.premier_paiement.montant 
+              : (formData.premier_paiement.montant_cheque || 0);
+            
+            if (Math.abs(totalCheques - montantChequeAttendu) > 0.01) {
+              newErrors.cheques = `Le total des chèques (${totalCheques.toLocaleString()} DH) ne correspond pas au montant chèque attendu (${montantChequeAttendu.toLocaleString()} DH)`;
+            }
+          }
+        }
         break;
     }
 

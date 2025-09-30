@@ -15,7 +15,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   console.log('🔍 GET / - userId:', req.user!.userId);
 
   const result = await query(
-    `SELECT e.*, p.nom as project_nom
+    `SELECT e.*, p.nom as project_nom, e.methode_paiement as mode_paiement
      FROM expenses e
      LEFT JOIN projects p ON e.project_id = p.id
      WHERE e.user_id = $1
@@ -56,7 +56,7 @@ router.get('/project/:projectId', asyncHandler(async (req: Request, res: Respons
   }
 
   const result = await query(
-    `SELECT e.*, p.nom as project_nom
+    `SELECT e.*, p.nom as project_nom, e.methode_paiement as mode_paiement
      FROM expenses e
      LEFT JOIN projects p ON e.project_id = p.id
      WHERE e.project_id = $1 AND e.user_id = $2
@@ -153,7 +153,7 @@ router.get('/analytics', asyncHandler(async (req: Request, res: Response) => {
     console.log('🔍 Analytics globales - userId:', req.user!.userId);
 
     const expensesResult = await query(
-      `SELECT e.*, p.nom as project_nom
+      `SELECT e.*, p.nom as project_nom, e.methode_paiement as mode_paiement
        FROM expenses e
        LEFT JOIN projects p ON e.project_id = p.id
        WHERE e.user_id = $1`,
@@ -482,7 +482,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
   const result = await query(
-    `SELECT e.*, p.nom as project_nom
+    `SELECT e.*, p.nom as project_nom, e.methode_paiement as mode_paiement
      FROM expenses e
      LEFT JOIN projects p ON e.project_id = p.id
      WHERE e.id = $1 AND e.user_id = $2`,
@@ -528,7 +528,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
       validatedData.nom,
       validatedData.montant_declare,
       validatedData.montant_non_declare,
-      validatedData.methode_paiement,
+      validatedData.mode_paiement, // Utiliser mode_paiement du frontend
       validatedData.description
     ]
   );
@@ -563,12 +563,14 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   let paramIndex = 1;
 
   const allowedFields = [
-    'nom', 'montant_declare', 'montant_non_declare', 'methode_paiement', 'description'
+    'nom', 'montant_declare', 'montant_non_declare', 'mode_paiement', 'description'
   ];
 
   for (const field of allowedFields) {
     if (updateData[field] !== undefined) {
-      updateFields.push(`${field} = $${paramIndex}`);
+      // Mapper mode_paiement vers methode_paiement pour la base de données
+      const dbField = field === 'mode_paiement' ? 'methode_paiement' : field;
+      updateFields.push(`${dbField} = $${paramIndex}`);
       values.push(updateData[field]);
       paramIndex++;
     }

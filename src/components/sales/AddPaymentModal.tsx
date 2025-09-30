@@ -159,25 +159,34 @@ export function AddPaymentModal({ sale, onClose, onPaymentAdded }: AddPaymentMod
       }
     }
 
-    if ((formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece') && formData.cheques) {
-      const totalChequesAmount = formData.cheques.reduce((sum, cheque) => sum + (cheque.montant || 0), 0);
-      const expectedChequeAmount = formData.mode_paiement === 'cheque' ? formData.montant : (formData.montant_cheque || 0);
+    if (formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece') {
+      const hasCheques = formData.cheques && formData.cheques.length > 0;
       
-      if (Math.abs(totalChequesAmount - expectedChequeAmount) > 0.01) {
-        newErrors.cheques = 'Le total des chèques doit égaler le montant chèque';
-      }
+      // Vérifier qu'au moins un chèque est ajouté
+      if (!hasCheques) {
+        newErrors.cheques = 'Le mode de paiement "chèque" nécessite l\'ajout d\'au moins un chèque';
+      } else {
+        // Vérifier que le total des chèques correspond au montant attendu
+        const totalChequesAmount = formData.cheques.reduce((sum, cheque) => sum + (cheque.montant || 0), 0);
+        const expectedChequeAmount = formData.mode_paiement === 'cheque' ? formData.montant : (formData.montant_cheque || 0);
+        
+        if (Math.abs(totalChequesAmount - expectedChequeAmount) > 0.01) {
+          newErrors.cheques = 'Le total des chèques doit égaler le montant chèque';
+        }
 
-      formData.cheques.forEach((cheque, index) => {
-        if (!cheque.numero.trim()) {
-          newErrors[`cheque_${index}_numero`] = 'Le numéro du chèque est requis';
-        }
-        if (!cheque.banque.trim()) {
-          newErrors[`cheque_${index}_banque`] = 'La banque est requise';
-        }
-        if (!cheque.montant || cheque.montant <= 0) {
-          newErrors[`cheque_${index}_montant`] = 'Le montant du chèque est requis';
-        }
-      });
+        // Valider chaque chèque individuellement
+        formData.cheques.forEach((cheque, index) => {
+          if (!cheque.numero.trim()) {
+            newErrors[`cheque_${index}_numero`] = 'Le numéro du chèque est requis';
+          }
+          if (!cheque.banque.trim()) {
+            newErrors[`cheque_${index}_banque`] = 'La banque est requise';
+          }
+          if (!cheque.montant || cheque.montant <= 0) {
+            newErrors[`cheque_${index}_montant`] = 'Le montant du chèque est requis';
+          }
+        });
+      }
     }
 
     setErrors(newErrors);

@@ -250,7 +250,7 @@ const Expenses = () => {
         nom: formData.nom,
         montant_declare: formData.montant_declare || 0,
         montant_non_declare: formData.montant_non_declare || 0,
-        methode_paiement: formData.mode_paiement === 'cheque_espece' ? 'cheque_et_espece' : formData.mode_paiement,
+        mode_paiement: formData.mode_paiement,
         description: formData.description || '',
       };
 

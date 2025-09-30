@@ -21,7 +21,16 @@ const formatAmount = (amount: number) => {
   }).format(amount);
 };
 
-const getPaymentModeBadge = (mode: string) => {
+const getPaymentModeBadge = (mode: string | null | undefined) => {
+  // Gérer les cas où mode est null, undefined ou vide
+  if (!mode || mode.trim() === '') {
+    return (
+      <Badge className="bg-gray-100 text-gray-600">
+        Non défini
+      </Badge>
+    );
+  }
+
   const modes = {
     'espece': { label: 'Espèces', variant: 'default' as const, color: 'bg-green-100 text-green-800' },
     'cheque': { label: 'Chèque', variant: 'secondary' as const, color: 'bg-blue-100 text-blue-800' },

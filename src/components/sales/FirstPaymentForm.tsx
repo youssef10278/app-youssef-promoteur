@@ -99,6 +99,20 @@ export function FirstPaymentForm({ data, onChange, prixTotal, errors = {} }: Fir
   const pourcentagePaye = prixTotal > 0 ? (data.montant / prixTotal) * 100 : 0;
   const montantRestant = prixTotal - data.montant;
 
+  // Calculer le total des chèques
+  const totalCheques = data.cheques?.reduce((sum, cheque) => sum + (cheque.montant || 0), 0) || 0;
+  
+  // Validation des chèques
+  const isChequeMode = data.mode_paiement === 'cheque' || data.mode_paiement === 'cheque_espece';
+  const montantChequeAttendu = data.mode_paiement === 'cheque' ? data.montant : (data.montant_cheque || 0);
+  const hasCheques = data.cheques && data.cheques.length > 0;
+  
+  // Erreur si mode chèque mais aucun chèque ajouté
+  const isMissingChequesError = isChequeMode && !hasCheques;
+  
+  // Erreur si chèques présents mais total incorrect
+  const isChequeTotalError = isChequeMode && hasCheques && totalCheques !== montantChequeAttendu;
+
   return (
     <div className="space-y-6">
       {/* Résumé financier */}
@@ -336,6 +350,38 @@ export function FirstPaymentForm({ data, onChange, prixTotal, errors = {} }: Fir
                   Ajouter un chèque
                 </Button>
               </div>
+
+              {/* Validation des chèques */}
+              {isMissingChequesError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-700">
+                    ⚠️ <strong>Erreur de validation :</strong> Le mode de paiement "chèque" nécessite l'ajout d'au moins un chèque.
+                  </p>
+                </div>
+              )}
+              
+              {isChequeTotalError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-700">
+                    ⚠️ <strong>Erreur de validation :</strong> Le total des chèques ({formatAmount(totalCheques)} DH) 
+                    ne correspond pas au montant chèque attendu ({formatAmount(montantChequeAttendu)} DH)
+                  </p>
+                </div>
+              )}
+
+              {/* Résumé des chèques */}
+              {data.cheques && data.cheques.length > 0 && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-blue-700">
+                      Total des chèques : {formatAmount(totalCheques)} DH
+                    </span>
+                    <span className="text-sm text-blue-600">
+                      Attendu : {formatAmount(montantChequeAttendu)} DH
+                    </span>
+                  </div>
+                </div>
+              )}
               
               {data.cheques?.map((cheque, index) => (
                 <Card key={index} className="p-4">
