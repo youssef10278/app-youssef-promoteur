@@ -1,5 +1,6 @@
 import { Pool, PoolConfig } from 'pg';
 import dotenv from 'dotenv';
+import logger, { logQuery } from '../utils/logger';
 
 dotenv.config();
 
@@ -16,7 +17,7 @@ const config: PoolConfig = {
 };
 
 // Log de la configuration pour debug
-console.log('🔧 Configuration PostgreSQL:', {
+logger.info('Configuration PostgreSQL', {
   host: config.host,
   port: config.port,
   database: config.database,
@@ -28,18 +29,18 @@ console.log('🔧 Configuration PostgreSQL:', {
 if (process.env.NODE_ENV === 'production' && process.env.DATABASE_URL) {
   config.connectionString = process.env.DATABASE_URL;
   config.ssl = { rejectUnauthorized: false };
-  console.log('🚀 Utilisation de DATABASE_URL pour la production');
+  logger.info('Utilisation de DATABASE_URL pour la production');
 }
 
 export const pool = new Pool(config);
 
 // Test de connexion
 pool.on('connect', () => {
-  console.log('✅ Connexion à PostgreSQL établie');
+  logger.info('Connexion à PostgreSQL établie');
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Erreur PostgreSQL:', err);
+  logger.error('Erreur PostgreSQL', { error: err.message, stack: err.stack });
   process.exit(-1);
 });
 
@@ -47,27 +48,24 @@ pool.on('error', (err) => {
 export const query = async (text: string, params?: any[]) => {
   const start = Date.now();
   let client;
-  
+
   try {
     // Obtenir une connexion du pool
     client = await pool.connect();
-    
+
     // Exécuter la requête
     const res = await client.query(text, params);
     const duration = Date.now() - start;
-    
-    console.log('📊 Requête exécutée', { 
-      text: text.substring(0, 100) + (text.length > 100 ? '...' : ''), 
-      duration, 
-      rows: res.rowCount 
-    });
-    
+
+    // Logger la requête
+    logQuery(text, params || [], duration);
+
     return res;
   } catch (error) {
     const duration = Date.now() - start;
-    console.error('❌ Erreur de requête:', { 
-      text: text.substring(0, 100) + (text.length > 100 ? '...' : ''), 
-      duration,
+    logger.error('Erreur de requête', {
+      query: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+      duration: `${duration}ms`,
       error: error instanceof Error ? error.message : error,
       code: (error as any)?.code,
       detail: (error as any)?.detail
@@ -84,5 +82,5 @@ export const query = async (text: string, params?: any[]) => {
 // Fonction pour fermer la connexion proprement
 export const closePool = async () => {
   await pool.end();
-  console.log('🔌 Connexion PostgreSQL fermée');
+  logger.info('Connexion PostgreSQL fermée');
 };
