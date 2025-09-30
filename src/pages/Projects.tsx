@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Building2, Plus, ArrowLeft } from 'lucide-react';
@@ -11,6 +11,7 @@ import { ProjectStats } from '@/components/projects/ProjectStats';
 
 const Projects = () => {
   const { user, isLoading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
@@ -56,6 +57,11 @@ const Projects = () => {
     setFilters(newFilters);
   }, []);
 
+  // Modifier un projet
+  const handleEditProject = (project: Project) => {
+    navigate(`/edit-project/${project.id}`);
+  };
+
   // Supprimer un projet
   const handleDeleteProject = async (projectId: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) return;
@@ -81,15 +87,6 @@ const Projects = () => {
     }
   };
 
-  // Éditer un projet (placeholder pour future fonctionnalité)
-  const handleEditProject = (project: Project) => {
-    // TODO: Implémenter la modal d'édition
-    console.log('Éditer le projet:', project);
-    toast({
-      title: "Fonctionnalité à venir",
-      description: "L'édition des projets sera bientôt disponible",
-    });
-  };
 
   if (authLoading || isLoadingProjects) {
     return <div className="min-h-screen bg-background flex items-center justify-center">

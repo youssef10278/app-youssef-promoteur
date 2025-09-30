@@ -13,6 +13,7 @@ import RequireAuth from "./components/RequireAuth";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import CreateProject from "./pages/CreateProject";
+import EditProject from "./pages/EditProject";
 import Expenses from "./pages/Expenses";
 import Sales from "./pages/Sales";
 import Checks from "./pages/Checks";
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
               <Route path="/projects" element={<RequireAuth><Projects /></RequireAuth>} />
               <Route path="/create-project" element={<RequireAuth><CreateProject /></RequireAuth>} />
+              <Route path="/edit-project/:id" element={<RequireAuth><EditProject /></RequireAuth>} />
               <Route path="/expenses" element={<RequireAuth><Expenses /></RequireAuth>} />
               <Route path="/sales" element={<RequireAuth><Sales /></RequireAuth>} />
               <Route path="/checks" element={<RequireAuth><Checks /></RequireAuth>} />

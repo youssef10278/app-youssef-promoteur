@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Modification Projet</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-case { border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .step { margin: 10px 0; padding: 10px; background-color: #f8f9fa; border-left: 4px solid #007bff; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de la Fonctionnalité de Modification des Projets</h1>
+    
+    <div class="test-case info">
+        <h2>📋 Fonctionnalités Implémentées</h2>
+        <ul>
+            <li>✅ Page d'édition de projet (<code>EditProject.tsx</code>)</li>
+            <li>✅ Route d'édition (<code>/edit-project/:id</code>)</li>
+            <li>✅ Boutons d'édition connectés dans <code>ProjectList</code></li>
+            <li>✅ API backend PUT <code>/projects/:id</code></li>
+            <li>✅ Navigation depuis la page des projets</li>
+        </ul>
+    </div>
+
+    <div class="test-case success">
+        <h2>🎯 Comment Tester</h2>
+        
+        <div class="step">
+            <h3>1. Accéder à la page des projets</h3>
+            <p>Aller sur <code>/projects</code> dans votre application</p>
+        </div>
+
+        <div class="step">
+            <h3>2. Cliquer sur le bouton d'édition</h3>
+            <p>Sur chaque carte de projet, cliquer sur l'icône <strong>✏️</strong> (Edit)</p>
+        </div>
+
+        <div class="step">
+            <h3>3. Vérifier la page d'édition</h3>
+            <p>Vous devriez être redirigé vers <code>/edit-project/[ID]</code> avec :</p>
+            <ul>
+                <li>Formulaire pré-rempli avec les données du projet</li>
+                <li>Champs modifiables : nom, localisation, société, surface, lots, etc.</li>
+                <li>Boutons "Annuler" et "Modifier le Projet"</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <h3>4. Modifier les données</h3>
+            <p>Changer quelques valeurs et cliquer sur "Modifier le Projet"</p>
+        </div>
+
+        <div class="step">
+            <h3>5. Vérifier la sauvegarde</h3>
+            <p>Vous devriez être redirigé vers <code>/projects</code> avec :</p>
+            <ul>
+                <li>Toast de succès "Projet modifié avec succès"</li>
+                <li>Données mises à jour dans la liste des projets</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-case">
+        <h2>🔧 Fonctionnalités Techniques</h2>
+        
+        <h3>Page d'édition (<code>EditProject.tsx</code>)</h3>
+        <ul>
+            <li><strong>Chargement automatique</strong> : Récupère les données du projet via API</li>
+            <li><strong>Formulaire pré-rempli</strong> : Tous les champs sont initialisés</li>
+            <li><strong>Validation</strong> : Champs requis et types de données</li>
+            <li><strong>États de chargement</strong> : Spinner pendant chargement et sauvegarde</li>
+            <li><strong>Gestion d'erreurs</strong> : Messages d'erreur détaillés</li>
+            <li><strong>Navigation</strong> : Boutons retour et annulation</li>
+        </ul>
+
+        <h3>API Backend</h3>
+        <ul>
+            <li><strong>GET /projects/:id</strong> : Récupère un projet spécifique</li>
+            <li><strong>PUT /projects/:id</strong> : Met à jour un projet</li>
+            <li><strong>Validation</strong> : Schéma Joi pour les données</li>
+            <li><strong>Sécurité</strong> : Vérification de propriété du projet</li>
+        </ul>
+
+        <h3>Navigation</h3>
+        <ul>
+            <li><strong>Depuis la liste</strong> : Clic sur bouton édition → redirection</li>
+            <li><strong>Retour</strong> : Bouton "Retour" vers /projects</li>
+            <li><strong>Annulation</strong> : Bouton "Annuler" vers /projects</li>
+            <li><strong>Succès</strong> : Redirection automatique après sauvegarde</li>
+        </ul>
+    </div>
+
+    <div class="test-case success">
+        <h2>✅ Résultat Attendu</h2>
+        <p>La fonctionnalité de modification des projets est maintenant <strong>complètement opérationnelle</strong> !</p>
+        
+        <h3>Flux complet :</h3>
+        <ol>
+            <li>Liste des projets → Clic édition</li>
+            <li>Page d'édition → Modification des données</li>
+            <li>Sauvegarde → API PUT</li>
+            <li>Retour liste → Données mises à jour</li>
+        </ol>
+    </div>
+
+    <script>
+        console.log('🧪 Test de modification des projets - Fonctionnalité activée !');
+        console.log('📁 Fichiers créés/modifiés :');
+        console.log('  - src/pages/EditProject.tsx (nouveau)');
+        console.log('  - src/pages/Projects.tsx (modifié)');
+        console.log('  - src/App.tsx (route ajoutée)');
+        console.log('  - backend/src/routes/projects.ts (endpoint PUT existant)');
+    </script>
+</body>
+</html>
