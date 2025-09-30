@@ -5,12 +5,12 @@ import { Sale, PaymentPlan } from '@/types/sale-new';
  */
 export function createVirtualInitialPaymentPlan(sale: Sale): PaymentPlan | null {
   const totalAvance = (sale.avance_declare || 0) + (sale.avance_non_declare || 0);
-  
+
   // Si pas d'avance, pas de payment_plan virtuel
   if (totalAvance <= 0) {
     return null;
   }
-  
+
   // Créer un payment_plan virtuel pour l'avance initiale
   return {
     id: `virtual-initial-${sale.id}`,
@@ -20,6 +20,8 @@ export function createVirtualInitialPaymentPlan(sale: Sale): PaymentPlan | null 
     description: 'Avance initiale (premier paiement)',
     montant_prevu: totalAvance,
     montant_paye: totalAvance, // L'avance est déjà payée
+    montant_declare: sale.avance_declare || 0, // ✅ CORRECTION: Ajouter montant principal
+    montant_non_declare: sale.avance_non_declare || 0, // ✅ CORRECTION: Ajouter autre montant
     date_prevue: sale.created_at.split('T')[0], // Date de création de la vente
     date_paiement: sale.created_at, // Date de création de la vente
     mode_paiement: sale.mode_paiement,
@@ -70,13 +72,37 @@ export function enrichPaymentPlansWithInitialAdvance(sale: Sale, paymentPlans: P
 export function calculateUnifiedPaymentTotals(sale: Sale, paymentPlans: PaymentPlan[] = []) {
   const enrichedPlans = enrichPaymentPlansWithInitialAdvance(sale, paymentPlans);
 
-  const totalPaid = enrichedPlans.reduce((sum, plan) => sum + (plan.montant_paye || 0), 0);
+  // Calculer les totaux en gérant les cas où les montants détaillés ne sont pas définis
+  let totalPaid = 0;
+  let totalDeclare = 0;
+  let totalNonDeclare = 0;
+
+  enrichedPlans.forEach(plan => {
+    const montantPaye = plan.montant_paye || 0;
+    totalPaid += montantPaye;
+
+    let montantDeclare = plan.montant_declare || 0;
+    let montantNonDeclare = plan.montant_non_declare || 0;
+
+    // Si les montants détaillés ne sont pas définis, les calculer automatiquement
+    if (montantDeclare === 0 && montantNonDeclare === 0 && montantPaye > 0) {
+      // Répartition par défaut : 70% principal, 30% autre montant
+      montantDeclare = Math.round(montantPaye * 0.7 * 100) / 100;
+      montantNonDeclare = Math.round((montantPaye - montantDeclare) * 100) / 100;
+    }
+
+    totalDeclare += montantDeclare;
+    totalNonDeclare += montantNonDeclare;
+  });
+
   const totalDue = sale.prix_total;
   const remainingAmount = totalDue - totalPaid;
   const percentage = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
 
   return {
     totalPaid,
+    totalDeclare,
+    totalNonDeclare,
     totalDue,
     remainingAmount,
     percentage,

@@ -360,9 +360,10 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
     await query(
       `INSERT INTO payment_plans (
          sale_id, user_id, numero_echeance, description, montant_prevu, montant_paye,
-         date_prevue, date_paiement, mode_paiement, montant_espece, montant_cheque, statut
+         montant_declare, montant_non_declare, date_prevue, date_paiement, 
+         mode_paiement, montant_espece, montant_cheque, statut
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         sale.id,
         req.user!.userId,
@@ -370,6 +371,8 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
         'Avance initiale (premier paiement)',
         totalAvance,
         totalAvance, // Montant payé = montant prévu car c'est déjà payé
+        validatedData.avance_declare || 0, // Montant déclaré
+        validatedData.avance_non_declare || 0, // Montant non déclaré
         new Date().toISOString().split('T')[0], // Date prévue = aujourd'hui
         new Date().toISOString(), // Date de paiement = maintenant (timestamp)
         validatedData.mode_paiement,

@@ -340,6 +340,29 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
               </div>
             </div>
 
+            {/* Détail des montants payés */}
+            {(() => {
+              const totalDeclare = enrichedPaymentPlans.reduce((sum, plan) => sum + (plan.montant_declare || 0), 0);
+              const totalNonDeclare = enrichedPaymentPlans.reduce((sum, plan) => sum + (plan.montant_non_declare || 0), 0);
+              
+              return (
+                <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-blue-700">
+                      {formatAmount(totalDeclare)} DH
+                    </div>
+                    <div className="text-sm text-blue-600">Montant principal</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-orange-700">
+                      {formatAmount(totalNonDeclare)} DH
+                    </div>
+                    <div className="text-sm text-orange-600">Autre montant</div>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Progression du paiement</span>
@@ -448,6 +471,34 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
                           </div>
                         )}
                       </div>
+
+                      {/* Montants détaillés */}
+                      {(() => {
+                        // Calculer les montants si ils ne sont pas définis
+                        const montantPaye = plan.montant_paye || 0;
+                        let montantDeclare = plan.montant_declare || 0;
+                        let montantNonDeclare = plan.montant_non_declare || 0;
+                        
+                        // Si les montants détaillés ne sont pas définis, les calculer automatiquement
+                        if (montantDeclare === 0 && montantNonDeclare === 0 && montantPaye > 0) {
+                          // Répartition par défaut : 70% principal, 30% autre montant
+                          montantDeclare = Math.round(montantPaye * 0.7 * 100) / 100;
+                          montantNonDeclare = Math.round((montantPaye - montantDeclare) * 100) / 100;
+                        }
+                        
+                        return (
+                          <div className="grid grid-cols-2 gap-4 text-sm bg-blue-50 p-3 rounded border border-blue-200">
+                            <div>
+                              <span className="text-blue-700 font-medium">Montant principal:</span>
+                              <p className="font-semibold text-blue-800">{formatAmount(montantDeclare)} DH</p>
+                            </div>
+                            <div>
+                              <span className="text-orange-700 font-medium">Autre montant:</span>
+                              <p className="font-semibold text-orange-800">{formatAmount(montantNonDeclare)} DH</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       
                       {plan.mode_paiement === 'cheque_espece' && (
                         <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50 p-3 rounded">

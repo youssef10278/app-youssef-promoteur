@@ -37,8 +37,9 @@ router.post('/complete-payment', asyncHandler(async (req: Request, res: Response
 
   // Créer le plan de paiement
   const planResult = await query(
-    `INSERT INTO payment_plans (sale_id, user_id, numero_echeance, date_prevue, montant_prevu, description)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO payment_plans (sale_id, user_id, numero_echeance, date_prevue, montant_prevu, 
+                               montant_declare, montant_non_declare, description)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       saleId,
@@ -46,6 +47,8 @@ router.post('/complete-payment', asyncHandler(async (req: Request, res: Response
       nextEcheanceNumber,
       paymentData.date_paiement,
       paymentData.montant_paye,
+      paymentData.montant_declare || 0,
+      paymentData.montant_non_declare || 0,
       paymentData.notes || `Paiement #${nextEcheanceNumber}`
     ]
   );
@@ -83,12 +86,15 @@ router.post('/complete-payment', asyncHandler(async (req: Request, res: Response
   await query(
     `UPDATE payment_plans 
      SET montant_paye = $1, date_paiement = $2, mode_paiement = $3, 
-         montant_espece = $4, montant_cheque = $5, statut = 'paye'
-     WHERE id = $6`,
+         montant_declare = $4, montant_non_declare = $5,
+         montant_espece = $6, montant_cheque = $7, statut = 'paye'
+     WHERE id = $8`,
     [
       paymentData.montant_paye,
       paymentData.date_paiement,
       paymentData.mode_paiement,
+      paymentData.montant_declare || 0,
+      paymentData.montant_non_declare || 0,
       paymentData.montant_espece || 0,
       paymentData.montant_cheque || 0,
       paymentPlan.id
@@ -102,6 +108,8 @@ router.post('/complete-payment', asyncHandler(async (req: Request, res: Response
         ...paymentPlan,
         montant_prevu: parseFloat(paymentPlan.montant_prevu || 0),
         montant_paye: parseFloat(paymentData.montant_paye || 0),
+        montant_declare: parseFloat(paymentData.montant_declare || 0),
+        montant_non_declare: parseFloat(paymentData.montant_non_declare || 0),
         montant_espece: parseFloat(paymentData.montant_espece || 0),
         montant_cheque: parseFloat(paymentData.montant_cheque || 0)
       },
@@ -144,6 +152,8 @@ router.get('/plans/sale/:saleId', asyncHandler(async (req: Request, res: Respons
     ...plan,
     montant_prevu: parseFloat(plan.montant_prevu || 0),
     montant_paye: parseFloat(plan.montant_paye || 0),
+    montant_declare: parseFloat(plan.montant_declare || 0),
+    montant_non_declare: parseFloat(plan.montant_non_declare || 0),
     montant_espece: parseFloat(plan.montant_espece || 0),
     montant_cheque: parseFloat(plan.montant_cheque || 0)
   }));

@@ -258,6 +258,8 @@ export class SalesServiceNew {
         paymentData: {
           date_paiement: paymentData.date_paiement,
           montant_paye: paymentData.montant_paye,
+          montant_declare: paymentData.montant_declare || 0, // ✅ AJOUTÉ
+          montant_non_declare: paymentData.montant_non_declare || 0, // ✅ AJOUTÉ
           mode_paiement: paymentData.mode_paiement,
           montant_espece: paymentData.montant_espece || 0,
           montant_cheque: paymentData.montant_cheque || 0,

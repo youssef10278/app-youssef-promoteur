@@ -52,6 +52,8 @@ export interface PaymentPlan {
   description?: string;
   montant_prevu: number;
   montant_paye: number;
+  montant_declare?: number;
+  montant_non_declare?: number;
   date_prevue: string;
   date_paiement?: string;
   statut: PaymentPlanStatus;

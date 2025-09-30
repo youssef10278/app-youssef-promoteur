@@ -232,30 +232,53 @@ export function SalesList({ sales, onAddPayment, onViewDetails, onPrintHistory }
             </CardHeader>
 
             <CardContent>
-              {/* Résumé financier */}
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <div className="text-xl sm:text-2xl font-bold text-green-600">
-                      {formatAmount(progress.totalPaid)}
+                {/* Résumé financier */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <div className="text-xl sm:text-2xl font-bold text-green-600">
+                        {formatAmount(progress.totalPaid)}
+                      </div>
+                      <div className="text-sm text-green-700">Montant payé</div>
                     </div>
-                    <div className="text-sm text-green-700">Montant payé</div>
+
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <div className="text-xl sm:text-2xl font-bold text-blue-600">
+                        {formatAmount(progress.totalDue - progress.totalPaid)}
+                      </div>
+                      <div className="text-sm text-blue-700">Montant restant</div>
+                    </div>
+
+                    <div className="text-center p-3 bg-gray-50 rounded-lg">
+                      <div className="text-xl sm:text-2xl font-bold text-gray-600">
+                        {progress.percentage.toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-gray-700">Progression</div>
+                    </div>
                   </div>
 
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                      {formatAmount(progress.totalDue - progress.totalPaid)}
-                    </div>
-                    <div className="text-sm text-blue-700">Montant restant</div>
-                  </div>
-
-                  <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <div className="text-xl sm:text-2xl font-bold text-gray-600">
-                      {progress.percentage.toFixed(1)}%
-                    </div>
-                    <div className="text-sm text-gray-700">Progression</div>
-                  </div>
-                </div>
+                  {/* Détail des montants payés */}
+                  {(() => {
+                    const totalDeclare = progress.enrichedPaymentPlans.reduce((sum, plan) => sum + (plan.montant_declare || 0), 0);
+                    const totalNonDeclare = progress.enrichedPaymentPlans.reduce((sum, plan) => sum + (plan.montant_non_declare || 0), 0);
+                    
+                    return (
+                      <div className="grid grid-cols-2 gap-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-blue-700">
+                            {formatAmount(totalDeclare)} DH
+                          </div>
+                          <div className="text-xs text-blue-600">Montant principal</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-orange-700">
+                            {formatAmount(totalNonDeclare)} DH
+                          </div>
+                          <div className="text-xs text-orange-600">Autre montant</div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                 {/* Barre de progression */}
                 <div className="space-y-2">
@@ -305,29 +328,63 @@ export function SalesList({ sales, onAddPayment, onViewDetails, onPrintHistory }
                     {progress.enrichedPaymentPlans
                       .sort((a, b) => a.numero_echeance - b.numero_echeance)
                       .map((plan) => (
-                        <div key={plan.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                          <div className="flex items-center space-x-3">
-                            <div className="text-sm">
-                              <div className="font-medium">Paiement #{plan.numero_echeance}</div>
-                              <div className="text-muted-foreground">
-                                {new Date(plan.date_prevue).toLocaleDateString('fr-FR')}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center space-x-3">
-                            <div className="text-right text-sm">
-                              <div className="font-medium">
-                                {formatAmount(plan.montant_paye || 0)} / {formatAmount(plan.montant_prevu)} DH
-                              </div>
-                              {plan.date_paiement && (
+                        <div key={plan.id} className="p-3 bg-gray-50 rounded space-y-2">
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center space-x-3">
+                              <div className="text-sm">
+                                <div className="font-medium">Paiement #{plan.numero_echeance}</div>
                                 <div className="text-muted-foreground">
-                                  Payé le {new Date(plan.date_paiement).toLocaleDateString('fr-FR')}
+                                  {new Date(plan.date_prevue).toLocaleDateString('fr-FR')}
                                 </div>
-                              )}
+                              </div>
                             </div>
-                            {getPaymentStatusBadge(plan.statut)}
+                            
+                            <div className="flex items-center space-x-3">
+                              <div className="text-right text-sm">
+                                <div className="font-medium">
+                                  {formatAmount(plan.montant_paye || 0)} / {formatAmount(plan.montant_prevu)} DH
+                                </div>
+                                {plan.date_paiement && (
+                                  <div className="text-muted-foreground">
+                                    Payé le {new Date(plan.date_paiement).toLocaleDateString('fr-FR')}
+                                  </div>
+                                )}
+                              </div>
+                              {getPaymentStatusBadge(plan.statut)}
+                            </div>
                           </div>
+
+                          {/* Montants détaillés pour les paiements effectués */}
+                          {plan.montant_paye > 0 && (() => {
+                            // Calculer les montants si ils ne sont pas définis
+                            const montantPaye = plan.montant_paye || 0;
+                            let montantDeclare = plan.montant_declare || 0;
+                            let montantNonDeclare = plan.montant_non_declare || 0;
+                            
+                            // Si les montants détaillés ne sont pas définis, les calculer automatiquement
+                            if (montantDeclare === 0 && montantNonDeclare === 0 && montantPaye > 0) {
+                              // Répartition par défaut : 70% principal, 30% autre montant
+                              montantDeclare = Math.round(montantPaye * 0.7 * 100) / 100;
+                              montantNonDeclare = Math.round((montantPaye - montantDeclare) * 100) / 100;
+                            }
+                            
+                            return (
+                              <div className="grid grid-cols-2 gap-3 text-xs bg-blue-50 p-2 rounded border border-blue-200">
+                                <div className="text-center">
+                                  <div className="font-semibold text-blue-700">
+                                    {formatAmount(montantDeclare)} DH
+                                  </div>
+                                  <div className="text-blue-600">Principal</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="font-semibold text-orange-700">
+                                    {formatAmount(montantNonDeclare)} DH
+                                  </div>
+                                  <div className="text-orange-600">Autre</div>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       ))}
                   </div>

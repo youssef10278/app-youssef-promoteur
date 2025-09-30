@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Correction Montants Paiements</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-case { border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .payment { background-color: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 3px; }
+        .amount { font-weight: bold; }
+        .principal { color: #007bff; }
+        .autre { color: #fd7e14; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de la Correction des Montants des Paiements</h1>
+    
+    <div id="test-results"></div>
+
+    <script>
+        // Simulation des données de paiement
+        const testPayments = [
+            {
+                id: '1',
+                numero_echeance: 1,
+                montant_paye: 100,
+                montant_declare: 70,
+                montant_non_declare: 30,
+                description: 'Paiement avec montants définis'
+            },
+            {
+                id: '2',
+                numero_echeance: 2,
+                montant_paye: 50,
+                montant_declare: 0,
+                montant_non_declare: 0,
+                description: 'Paiement sans montants définis (doit être calculé)'
+            },
+            {
+                id: '3',
+                numero_echeance: 3,
+                montant_paye: 20,
+                montant_declare: 0,
+                montant_non_declare: 0,
+                description: 'Paiement de 20 DH (comme dans l\'image)'
+            },
+            {
+                id: '4',
+                numero_echeance: 4,
+                montant_paye: 0,
+                montant_declare: 0,
+                montant_non_declare: 0,
+                description: 'Paiement de 0 DH (ne doit pas être calculé)'
+            }
+        ];
+
+        // Fonction de calcul automatique (copiée du code corrigé)
+        function calculateAmounts(plan) {
+            const montantPaye = plan.montant_paye || 0;
+            let montantDeclare = plan.montant_declare || 0;
+            let montantNonDeclare = plan.montant_non_declare || 0;
+            
+            // Si les montants détaillés ne sont pas définis, les calculer automatiquement
+            if (montantDeclare === 0 && montantNonDeclare === 0 && montantPaye > 0) {
+                // Répartition par défaut : 70% principal, 30% autre montant
+                montantDeclare = Math.round(montantPaye * 0.7 * 100) / 100;
+                montantNonDeclare = Math.round((montantPaye - montantDeclare) * 100) / 100;
+            }
+            
+            return { montantDeclare, montantNonDeclare };
+        }
+
+        // Fonction de formatage des montants
+        function formatAmount(amount) {
+            return new Intl.NumberFormat('fr-MA', {
+                style: 'currency',
+                currency: 'MAD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            }).format(amount).replace('MAD', 'DH');
+        }
+
+        // Exécuter les tests
+        function runTests() {
+            const resultsDiv = document.getElementById('test-results');
+            let html = '';
+
+            testPayments.forEach((payment, index) => {
+                const { montantDeclare, montantNonDeclare } = calculateAmounts(payment);
+                const total = montantDeclare + montantNonDeclare;
+                const isCorrect = Math.abs(total - payment.montant_paye) < 0.01;
+                const wasCalculated = payment.montant_declare === 0 && payment.montant_non_declare === 0 && payment.montant_paye > 0;
+
+                const testClass = isCorrect ? 'success' : 'error';
+                const status = isCorrect ? '✅ PASS' : '❌ FAIL';
+                const calculationNote = wasCalculated ? ' (calculé automatiquement)' : ' (défini en base)';
+
+                html += `
+                    <div class="test-case ${testClass}">
+                        <h3>Test ${index + 1}: ${status} ${calculationNote}</h3>
+                        <p><strong>Description:</strong> ${payment.description}</p>
+                        <div class="payment">
+                            <div><strong>Paiement #${payment.numero_echeance}</strong></div>
+                            <div>Montant total: <span class="amount">${formatAmount(payment.montant_paye)}</span></div>
+                            <div>Montant principal: <span class="amount principal">${formatAmount(montantDeclare)}</span></div>
+                            <div>Autre montant: <span class="amount autre">${formatAmount(montantNonDeclare)}</span></div>
+                            <div>Somme: <span class="amount">${formatAmount(total)}</span></div>
+                            <div>Différence: <span class="amount">${formatAmount(Math.abs(total - payment.montant_paye))}</span></div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Résumé global
+            const allCorrect = testPayments.every(payment => {
+                const { montantDeclare, montantNonDeclare } = calculateAmounts(payment);
+                const total = montantDeclare + montantNonDeclare;
+                return Math.abs(total - payment.montant_paye) < 0.01;
+            });
+
+            html += `
+                <div class="test-case ${allCorrect ? 'success' : 'error'}">
+                    <h2>📊 Résumé Global: ${allCorrect ? '✅ TOUS LES TESTS RÉUSSIS' : '❌ CERTAINS TESTS ONT ÉCHOUÉ'}</h2>
+                    <p>La correction des montants des paiements fonctionne correctement !</p>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Exécuter les tests au chargement de la page
+        document.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>

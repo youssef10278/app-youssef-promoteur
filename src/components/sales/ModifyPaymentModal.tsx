@@ -40,6 +40,8 @@ interface ModifyPaymentModalProps {
 
 interface FormData {
   montant_paye: number;
+  montant_declare: number;
+  montant_non_declare: number;
   date_paiement: string;
   mode_paiement: 'espece' | 'cheque' | 'cheque_espece' | 'virement';
   montant_espece: number;
@@ -54,6 +56,8 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
 
   const [formData, setFormData] = useState<FormData>({
     montant_paye: payment.montant_paye || 0,
+    montant_declare: payment.montant_declare || payment.montant_paye || 0,
+    montant_non_declare: payment.montant_non_declare || 0,
     date_paiement: payment.date_paiement?.split('T')[0] || new Date().toISOString().split('T')[0],
     mode_paiement: payment.mode_paiement || 'espece',
     montant_espece: payment.montant_espece || 0,
@@ -116,7 +120,19 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
         formData
       });
 
-      const response = await apiClient.put(`/payments/plans/${payment.id}`, formData);
+      // Préparer les données pour l'API avec les montants détaillés
+      const paymentData = {
+        montant_paye: formData.montant_paye,
+        montant_declare: formData.montant_declare,
+        montant_non_declare: formData.montant_non_declare,
+        date_paiement: formData.date_paiement,
+        mode_paiement: formData.mode_paiement,
+        montant_espece: formData.montant_espece,
+        montant_cheque: formData.montant_cheque,
+        notes: formData.notes
+      };
+
+      const response = await apiClient.put(`/payments/plans/${payment.id}`, paymentData);
 
       console.log('✅ [ModifyPaymentModal] Réponse API:', response);
 
@@ -196,7 +212,10 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
                     ...prev,
                     montant_paye: newMontant,
                     montant_espece: prev.mode_paiement === 'espece' ? newMontant : prev.montant_espece,
-                    montant_cheque: prev.mode_paiement === 'cheque' ? newMontant : prev.montant_cheque
+                    montant_cheque: prev.mode_paiement === 'cheque' ? newMontant : prev.montant_cheque,
+                    // Auto-ajuster les montants principal/autre montant si pas encore définis
+                    montant_declare: prev.montant_declare || newMontant,
+                    montant_non_declare: prev.montant_non_declare || 0
                   }));
                 }}
                 className={errors.montant_paye ? 'border-red-500' : ''}
@@ -220,6 +239,66 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
               )}
             </div>
           </div>
+
+          {/* Montants principal et autre montant */}
+          <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="space-y-2">
+              <Label htmlFor="montant_declare" className="text-blue-700 font-medium">
+                Montant principal *
+              </Label>
+              <Input
+                id="montant_declare"
+                type="number"
+                step="0.01"
+                value={formData.montant_declare || ''}
+                onChange={(e) => {
+                  const declare = parseFloat(e.target.value) || 0;
+                  setFormData(prev => ({
+                    ...prev,
+                    montant_declare: declare,
+                    montant_non_declare: Math.max(0, prev.montant_paye - declare)
+                  }));
+                }}
+                placeholder="0"
+                className="border-blue-300 focus:border-blue-500"
+              />
+              <p className="text-xs text-blue-600">Montant principal</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="montant_non_declare" className="text-orange-700 font-medium">
+                Autre montant
+              </Label>
+              <Input
+                id="montant_non_declare"
+                type="number"
+                step="0.01"
+                value={formData.montant_non_declare || ''}
+                onChange={(e) => {
+                  const nonDeclare = parseFloat(e.target.value) || 0;
+                  setFormData(prev => ({
+                    ...prev,
+                    montant_non_declare: nonDeclare,
+                    montant_declare: Math.max(0, prev.montant_paye - nonDeclare)
+                  }));
+                }}
+                placeholder="0"
+                className="border-orange-300 focus:border-orange-500"
+              />
+              <p className="text-xs text-orange-600">Autre montant</p>
+            </div>
+          </div>
+
+          {/* Validation des montants */}
+          {(formData.montant_declare + formData.montant_non_declare) !== formData.montant_paye && formData.montant_paye > 0 && (
+            <Alert className="border-red-200 bg-red-50">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-700">
+                La somme des montants principal et autre montant ({formatAmount(formData.montant_declare + formData.montant_non_declare)} DH)
+                doit être égale au montant total ({formatAmount(formData.montant_paye)} DH)
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Mode de paiement */}
           <div className="space-y-2">
