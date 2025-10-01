@@ -9,7 +9,7 @@
     "start": "npm run migrate:prod && node dist/server.js",
     "migrate": "node dist/scripts/migrate.js",
     "migrate:build": "tsc src/scripts/migrate.ts --outDir dist/scripts --target es2020 --module commonjs --esModuleInterop true --allowSyntheticDefaultImports true --strict true --skipLibCheck true",
-    "migrate:prod": "node -e \"require('./dist/scripts/migrate.js')\" || echo 'Migration completed or skipped'",
+    "migrate:prod": "node dist/scripts/migrate.js || echo 'Migration completed or skipped'",
     "migrate:declared-amounts": "ts-node src/scripts/run-migration.ts",
     "verify:schema": "ts-node src/scripts/verify-schema.ts",
     "seed": "node dist/scripts/seed.js",
