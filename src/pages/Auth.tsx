@@ -170,14 +170,7 @@ const Auth = () => {
                   </Button>
                 </form>
 
-                <div className="mt-6 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Pas encore de compte ?{' '}
-                    <Link to="/abc" className="text-primary hover:underline font-medium">
-                      Créer un compte
-                    </Link>
-                  </p>
-                </div>
+                {/* Lien d'inscription supprimé pour sécurité */}
               </CardContent>
             </Card>
           </div>

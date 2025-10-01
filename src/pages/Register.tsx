@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { Building2, Mail, Lock, User } from 'lucide-react';
 
 const Register = () => {
   const { user, register, isLoading: authLoading } = useAuth();
@@ -37,17 +37,10 @@ const Register = () => {
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
       <Card className="w-full max-w-md card-premium">
         <CardHeader className="text-center">
-          <div className="flex items-center justify-between mb-4">
-            <Link to="/auth">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Retour
-              </Button>
-            </Link>
-            <div className="mx-auto p-3 bg-primary/10 rounded-full w-fit">
+          <div className="flex justify-center mb-4">
+            <div className="p-3 bg-primary/10 rounded-full w-fit">
               <Building2 className="h-8 w-8 text-primary" />
             </div>
-            <div className="w-16"></div> {/* Spacer pour centrer l'icône */}
           </div>
           <CardTitle className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             Créer un Compte
@@ -118,14 +111,7 @@ const Register = () => {
             </Button>
           </form>
           
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Déjà un compte ?{' '}
-              <Link to="/auth" className="text-primary hover:underline font-medium">
-                Se connecter
-              </Link>
-            </p>
-          </div>
+          {/* Lien de connexion supprimé pour sécurité */}
         </CardContent>
       </Card>
     </div>
