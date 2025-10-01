@@ -1,0 +1,59 @@
+# 🔧 Variables d'Environnement pour Railway
+# ==========================================
+
+# 📋 BACKEND VARIABLES (Service Backend)
+# ======================================
+
+# Base de données PostgreSQL
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+
+# Configuration JWT (CHANGEZ CES VALEURS !)
+JWT_SECRET=votre-secret-jwt-super-securise-production-2024
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_SECRET=votre-refresh-secret-super-securise-production-2024
+JWT_REFRESH_EXPIRES_IN=30d
+
+# Configuration serveur
+NODE_ENV=production
+PORT=3001
+
+# CORS (sera mis à jour après déploiement du frontend)
+CORS_ORIGIN=https://votre-frontend-url.railway.app
+
+# Rate Limiting (production)
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Sécurité
+BCRYPT_ROUNDS=12
+
+# 📋 FRONTEND VARIABLES (Service Frontend)
+# ========================================
+
+# API Backend (sera mis à jour après déploiement du backend)
+VITE_API_BASE_URL=https://votre-backend-url.railway.app/api
+
+# Configuration de production
+VITE_APP_ENV=production
+VITE_APP_NAME=Promoteur Immobilier Pro
+VITE_APP_VERSION=2.0.0
+
+# 📋 INSTRUCTIONS DE CONFIGURATION
+# ================================
+
+# 1. Créez d'abord le service PostgreSQL dans Railway
+# 2. Créez le service Backend et ajoutez les variables ci-dessus
+# 3. Créez le service Frontend et ajoutez les variables VITE_*
+# 4. Mettez à jour CORS_ORIGIN avec l'URL réelle du frontend
+# 5. Mettez à jour VITE_API_BASE_URL avec l'URL réelle du backend
+
+# 🔐 SÉCURITÉ IMPORTANTE
+# ======================
+# - Changez JWT_SECRET et JWT_REFRESH_SECRET par des valeurs uniques
+# - Utilisez des secrets forts (minimum 32 caractères)
+# - Ne partagez jamais ces secrets publiquement
+
+# 💡 GÉNÉRATION DE SECRETS
+# ========================
+# Vous pouvez générer des secrets sécurisés avec :
+# node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
