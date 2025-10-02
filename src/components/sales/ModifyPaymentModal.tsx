@@ -89,35 +89,23 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
       console.log('🔍 [FIXED] Tous les chèques de la vente:', allChecks);
       console.log('🔍 [FIXED] Paiement actuel:', payment);
 
-      // ✅ NOUVELLE LOGIQUE : Stratégie de chargement intelligente
+      // ✅ NOUVELLE LOGIQUE : Chargement simplifié et robuste
       let relatedChecks = [];
 
-      // Stratégie 1 : Filtrer par date de paiement (logique originale)
-      const paymentDate = payment.date_paiement?.split('T')[0];
-      const checksByDate = allChecks.filter((check: any) => {
-        const checkDate = check.date_emission?.split('T')[0];
-        return checkDate === paymentDate;
-      });
-
-      // Stratégie 2 : Si aucun chèque trouvé par date, filtrer par montant
-      if (checksByDate.length === 0 && payment.montant_cheque > 0) {
-        console.log('🔍 [FIXED] Aucun chèque trouvé par date, recherche par montant...');
-        const checksByAmount = allChecks.filter((check: any) => {
-          const checkAmount = Number(check.montant) || 0;
-          return Math.abs(checkAmount - payment.montant_cheque) < 0.01; // Tolérance de 1 centime
-        });
-        relatedChecks = checksByAmount;
-        console.log('🔍 [FIXED] Chèques trouvés par montant:', relatedChecks);
-      } else {
-        relatedChecks = checksByDate;
-        console.log('🔍 [FIXED] Chèques trouvés par date:', relatedChecks);
-      }
-
-      // Stratégie 3 : Si toujours aucun chèque et mode contient "cheque", charger tous les chèques
-      if (relatedChecks.length === 0 && (payment.mode_paiement?.includes('cheque'))) {
-        console.log('🔍 [FIXED] Aucun chèque spécifique trouvé, chargement de tous les chèques de la vente...');
+      // Pour les paiements avec chèques, charger TOUS les chèques de la vente
+      // Cela évite les problèmes de filtrage complexe et laisse l'utilisateur gérer
+      if (payment.mode_paiement?.includes('cheque')) {
+        console.log('🔍 [FIXED] Mode paiement avec chèques détecté, chargement de tous les chèques...');
         relatedChecks = allChecks.filter((check: any) => check.id && check.sale_id === sale.id);
         console.log('🔍 [FIXED] Tous les chèques de la vente chargés:', relatedChecks);
+      } else {
+        // Pour les autres modes, essayer le filtrage par date comme fallback
+        const paymentDate = payment.date_paiement?.split('T')[0];
+        relatedChecks = allChecks.filter((check: any) => {
+          const checkDate = check.date_emission?.split('T')[0];
+          return checkDate === paymentDate;
+        });
+        console.log('🔍 [FIXED] Chèques trouvés par date (mode non-chèque):', relatedChecks);
       }
 
       // Convertir au format attendu
