@@ -87,12 +87,19 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
       const response = await apiClient.get(`/checks?sale_id=${sale.id}`);
       const allChecks = response.data || [];
 
+      console.log('🔍 Tous les chèques de la vente:', allChecks);
+      console.log('🔍 Paiement actuel:', payment);
+
       // Filtrer les chèques qui correspondent à ce paiement par date et montant
       const paymentDate = payment.date_paiement?.split('T')[0];
       const relatedChecks = allChecks.filter((check: any) => {
         const checkDate = check.date_emission?.split('T')[0];
-        return checkDate === paymentDate;
+        const dateMatch = checkDate === paymentDate;
+        console.log(`🔍 Chèque ${check.id}: date=${checkDate}, paymentDate=${paymentDate}, match=${dateMatch}`);
+        return dateMatch;
       });
+
+      console.log('🔍 Chèques filtrés pour ce paiement:', relatedChecks);
 
       // Convertir au format attendu
       const formattedChecks: CheckData[] = relatedChecks.map((check: any) => ({
@@ -157,9 +164,12 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
     }
 
     // 2. Créer les nouveaux chèques (s'il y en a plus que d'existants)
+    console.log(`🔍 Comparaison: ${newChecks.length} nouveaux vs ${existingChecks.length} existants`);
     if (newChecks.length > existingChecks.length) {
+      console.log(`➕ Création de ${newChecks.length - existingChecks.length} nouveaux chèques...`);
       for (let i = existingChecks.length; i < newChecks.length; i++) {
         const newCheck = newChecks[i];
+        console.log(`➕ Création du chèque ${i + 1}:`, newCheck);
         try {
           const checkData = {
             user_id: sale.user_id,
@@ -176,8 +186,9 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
             description: newCheck.description
           };
 
-          await apiClient.post('/checks', checkData);
+          const createResponse = await apiClient.post('/checks', checkData);
           console.log('✅ Nouveau chèque créé:', checkData);
+          console.log('✅ Réponse API création:', createResponse);
         } catch (error) {
           console.error('❌ Erreur lors de la création du nouveau chèque:', error);
         }
@@ -198,6 +209,13 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
     }
 
     console.log('🎉 Mise à jour intelligente des chèques terminée');
+    console.log('📊 Résumé final:', {
+      chequesExistantsAvant: existingChecks.length,
+      nouveauxChequesApres: newChecks.length,
+      chequesModifies: Math.min(newChecks.length, existingChecks.length),
+      chequesCreés: Math.max(0, newChecks.length - existingChecks.length),
+      chequesSupprimés: Math.max(0, existingChecks.length - newChecks.length)
+    });
   };
 
   const handleModeChange = (mode: FormData['mode_paiement']) => {
