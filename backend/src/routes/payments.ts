@@ -482,9 +482,13 @@ router.put('/plans/:planId', asyncHandler(async (req: Request, res: Response) =>
   console.log('🔧 User ID:', req.user!.userId);
   console.log('🔧 Payment Data:', JSON.stringify(paymentData, null, 2));
 
-  // Vérifier que le plan appartient à l'utilisateur
+  // Vérifier que le plan appartient à l'utilisateur et récupérer les infos de la vente
   const planCheck = await query(
-    'SELECT id, sale_id FROM payment_plans WHERE id = $1 AND user_id = $2',
+    `SELECT pp.id, pp.sale_id, pp.montant_paye as current_montant_paye,
+            s.prix_total, s.montant_paye as total_montant_paye
+     FROM payment_plans pp
+     LEFT JOIN sales s ON pp.sale_id = s.id
+     WHERE pp.id = $1 AND pp.user_id = $2`,
     [planId, req.user!.userId]
   );
 
@@ -494,6 +498,35 @@ router.put('/plans/:planId', asyncHandler(async (req: Request, res: Response) =>
     console.error('❌ Plan de paiement non trouvé');
     throw createError('Plan de paiement non trouvé', 404);
   }
+
+  const plan = planCheck.rows[0];
+  const prixTotal = parseFloat(plan.prix_total || 0);
+  const montantDejaPayeAutres = parseFloat(plan.total_montant_paye || 0) - parseFloat(plan.current_montant_paye || 0);
+  const nouveauMontantPaye = parseFloat(paymentData.montant_paye || 0);
+  const montantTotalApresModification = montantDejaPayeAutres + nouveauMontantPaye;
+
+  // VALIDATION CRITIQUE : Empêcher les surpaiements
+  if (montantTotalApresModification > prixTotal) {
+    const montantMaxAutorise = prixTotal - montantDejaPayeAutres;
+    console.error(`❌ Tentative de surpaiement détectée:`, {
+      prixTotal,
+      montantDejaPayeAutres,
+      nouveauMontantPaye,
+      montantTotalApresModification,
+      montantMaxAutorise
+    });
+    throw createError(
+      `Le montant ne peut pas dépasser ${montantMaxAutorise.toFixed(2)} DH (prix total: ${prixTotal.toFixed(2)} DH, déjà payé: ${montantDejaPayeAutres.toFixed(2)} DH)`,
+      400
+    );
+  }
+
+  console.log('✅ Validation surpaiement OK:', {
+    prixTotal,
+    montantDejaPayeAutres,
+    nouveauMontantPaye,
+    montantTotalApresModification
+  });
 
   const plan = planCheck.rows[0];
   console.log('🔧 Plan found:', plan);

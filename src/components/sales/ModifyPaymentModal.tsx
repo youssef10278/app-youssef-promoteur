@@ -255,6 +255,16 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
       newErrors.montant_paye = 'Le montant doit être supérieur à 0';
     }
 
+    // Validation critique : vérifier que le montant ne dépasse pas le prix total de la vente
+    const prixTotal = sale.prix_total || 0;
+    const montantDejaPayeAutres = (sale.montant_paye || 0) - (payment.montant_paye || 0); // Autres paiements
+    const montantTotalApresModification = montantDejaPayeAutres + formData.montant_paye;
+
+    if (montantTotalApresModification > prixTotal) {
+      const montantMaxAutorise = prixTotal - montantDejaPayeAutres;
+      newErrors.montant_paye = `Le montant ne peut pas dépasser ${montantMaxAutorise.toFixed(2)} DH (prix total: ${prixTotal.toFixed(2)} DH, déjà payé: ${montantDejaPayeAutres.toFixed(2)} DH)`;
+    }
+
     if (!formData.date_paiement) {
       newErrors.date_paiement = 'La date de paiement est requise';
     }
@@ -413,6 +423,15 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
               {errors.montant_paye && (
                 <p className="text-sm text-red-500">{errors.montant_paye}</p>
               )}
+
+              {/* Affichage informatif des limites */}
+              <div className="text-xs text-gray-600 mt-1">
+                Prix total de la vente: {sale.prix_total?.toFixed(2) || 0} DH
+                <br />
+                Déjà payé (autres paiements): {((sale.montant_paye || 0) - (payment.montant_paye || 0)).toFixed(2)} DH
+                <br />
+                Montant maximum autorisé: {(sale.prix_total - ((sale.montant_paye || 0) - (payment.montant_paye || 0))).toFixed(2)} DH
+              </div>
             </div>
 
             <div className="space-y-2">
