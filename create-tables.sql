@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Types ENUM
 DO $$ BEGIN
-  CREATE TYPE payment_method AS ENUM ('cheque', 'espece', 'cheque_et_espece');
+  CREATE TYPE payment_method AS ENUM ('cheque', 'espece', 'cheque_et_espece', 'cheque_espece');
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;

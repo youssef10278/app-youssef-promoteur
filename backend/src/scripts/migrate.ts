@@ -64,6 +64,16 @@ const createTables = async () => {
     // Extension UUID si pas déjà présente
     await query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
 
+    // Correction de l'ENUM payment_method pour inclure 'cheque_espece'
+    console.log('🔧 Correction de l\'ENUM payment_method...');
+    try {
+      await query(`ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'cheque_espece';`);
+      console.log('✅ ENUM payment_method corrigé');
+    } catch (error) {
+      // L'erreur peut survenir si l'ENUM n'existe pas encore, on l'ignore
+      console.log('ℹ️ ENUM payment_method sera créé avec les bonnes valeurs');
+    }
+
     // Table des utilisateurs
     await query(`
       CREATE TABLE IF NOT EXISTS users (
