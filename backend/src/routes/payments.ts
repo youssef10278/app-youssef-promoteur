@@ -528,7 +528,6 @@ router.put('/plans/:planId', asyncHandler(async (req: Request, res: Response) =>
     montantTotalApresModification
   });
 
-  const plan = planCheck.rows[0];
   console.log('🔧 Plan found:', plan);
 
   // Mettre à jour le plan de paiement avec tous les champs nécessaires
