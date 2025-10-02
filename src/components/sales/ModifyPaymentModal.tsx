@@ -82,23 +82,43 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
 
     setIsLoadingChecks(true);
     try {
-      // Chercher les chèques liés à cette vente et ce paiement
+      // Chercher les chèques liés à cette vente
       const response = await apiClient.get(`/checks?sale_id=${sale.id}`);
       const allChecks = response.data || [];
 
-      console.log('🔍 Tous les chèques de la vente:', allChecks);
-      console.log('🔍 Paiement actuel:', payment);
+      console.log('🔍 [FIXED] Tous les chèques de la vente:', allChecks);
+      console.log('🔍 [FIXED] Paiement actuel:', payment);
 
-      // Filtrer les chèques qui correspondent à ce paiement par date et montant
+      // ✅ NOUVELLE LOGIQUE : Stratégie de chargement intelligente
+      let relatedChecks = [];
+
+      // Stratégie 1 : Filtrer par date de paiement (logique originale)
       const paymentDate = payment.date_paiement?.split('T')[0];
-      const relatedChecks = allChecks.filter((check: any) => {
+      const checksByDate = allChecks.filter((check: any) => {
         const checkDate = check.date_emission?.split('T')[0];
-        const dateMatch = checkDate === paymentDate;
-        console.log(`🔍 Chèque ${check.id}: date=${checkDate}, paymentDate=${paymentDate}, match=${dateMatch}`);
-        return dateMatch;
+        return checkDate === paymentDate;
       });
 
-      console.log('🔍 Chèques filtrés pour ce paiement:', relatedChecks);
+      // Stratégie 2 : Si aucun chèque trouvé par date, filtrer par montant
+      if (checksByDate.length === 0 && payment.montant_cheque > 0) {
+        console.log('🔍 [FIXED] Aucun chèque trouvé par date, recherche par montant...');
+        const checksByAmount = allChecks.filter((check: any) => {
+          const checkAmount = Number(check.montant) || 0;
+          return Math.abs(checkAmount - payment.montant_cheque) < 0.01; // Tolérance de 1 centime
+        });
+        relatedChecks = checksByAmount;
+        console.log('🔍 [FIXED] Chèques trouvés par montant:', relatedChecks);
+      } else {
+        relatedChecks = checksByDate;
+        console.log('🔍 [FIXED] Chèques trouvés par date:', relatedChecks);
+      }
+
+      // Stratégie 3 : Si toujours aucun chèque et mode contient "cheque", charger tous les chèques
+      if (relatedChecks.length === 0 && (payment.mode_paiement?.includes('cheque'))) {
+        console.log('🔍 [FIXED] Aucun chèque spécifique trouvé, chargement de tous les chèques de la vente...');
+        relatedChecks = allChecks.filter((check: any) => check.id && check.sale_id === sale.id);
+        console.log('🔍 [FIXED] Tous les chèques de la vente chargés:', relatedChecks);
+      }
 
       // Convertir au format attendu
       const formattedChecks: CheckData[] = relatedChecks.map((check: any) => ({
