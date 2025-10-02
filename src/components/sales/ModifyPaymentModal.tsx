@@ -172,7 +172,6 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
         console.log(`➕ Création du chèque ${i + 1}:`, newCheck);
         try {
           const checkData = {
-            user_id: sale.user_id,
             sale_id: sale.id,
             type_cheque: 'recu',
             montant: newCheck.montant,
