@@ -133,6 +133,9 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
         statut: check.statut || 'emis'
       }));
 
+      console.log('🔄 [ModifyPaymentModal] Chèques formatés pour le state:', formattedChecks);
+      console.log('🔄 [ModifyPaymentModal] Nombre de chèques à charger:', formattedChecks.length);
+
       setAssociatedChecks(formattedChecks);
       setFormData(prev => ({ ...prev, cheques: formattedChecks }));
 
@@ -255,10 +258,19 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
 
   // Handlers pour les chèques
   const handleChequesChange = (cheques: CheckData[]) => {
+    console.log('🔄 [ModifyPaymentModal] handleChequesChange appelé avec:', cheques);
+    console.log('🔄 [ModifyPaymentModal] Nombre de chèques reçus:', cheques.length);
+
     setFormData(prev => ({ ...prev, cheques }));
 
     // Recalculer le montant total des chèques
-    const totalCheques = cheques.reduce((sum, cheque) => sum + cheque.montant, 0);
+    const totalCheques = cheques.reduce((sum, cheque) => {
+      const montant = Number(cheque.montant) || 0;
+      console.log(`🔄 [ModifyPaymentModal] Chèque ${cheque.id}: montant=${montant}`);
+      return sum + montant;
+    }, 0);
+
+    console.log('🔄 [ModifyPaymentModal] Total calculé:', totalCheques);
 
     if (formData.mode_paiement === 'cheque') {
       setFormData(prev => ({

@@ -110,7 +110,7 @@ const CheckForm: React.FC<CheckFormProps> = ({
       )}
 
       {cheques.map((cheque, index) => (
-        <Card key={index} className="card-premium">
+        <Card key={cheque.id || `cheque-${index}`} className="card-premium">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center space-x-2">
