@@ -105,8 +105,11 @@ export function ModifyExpenseModal({
   const loadAssociatedChecks = async () => {
     setIsLoadingChecks(true);
     try {
+      console.log('🔍 [EXPENSE DEBUG] Chargement des chèques pour expense_id:', expense.id);
       const response = await apiClient.get(`/checks?expense_id=${expense.id}`);
       const checks = response.data || [];
+      console.log('🔍 [EXPENSE DEBUG] Chèques bruts reçus:', checks);
+      console.log('🔍 [EXPENSE DEBUG] Nombre de chèques:', checks.length);
       
       // Convertir les chèques au format attendu par le formulaire
       const formattedChecks: CheckData[] = checks.map((check: any) => ({
@@ -136,8 +139,17 @@ export function ModifyExpenseModal({
           montant_espece: 0
         }));
       } else if (expense.mode_paiement === 'cheque_espece') {
-        const totalCheques = formattedChecks.reduce((sum, check) => sum + check.montant, 0);
+        const totalCheques = formattedChecks.reduce((sum, check) => {
+          const montant = Number(check.montant) || 0;
+          console.log(`🔍 [EXPENSE DEBUG] Calcul total - sum=${sum}, montant=${montant}, type=${typeof check.montant}`);
+          return sum + montant;
+        }, 0);
         const totalEspece = expense.montant_total - totalCheques;
+        console.log('🔍 [EXPENSE DEBUG] Calculs finaux:', {
+          totalCheques,
+          montantTotal: expense.montant_total,
+          totalEspece
+        });
         setFormData(prev => ({
           ...prev,
           montant_cheque: totalCheques,

@@ -40,7 +40,13 @@ const CheckForm: React.FC<CheckFormProps> = ({
     onChequesChange(updatedCheques);
     
     // Recalculate total
-    const newTotal = updatedCheques.reduce((sum, cheque) => sum + cheque.montant, 0);
+    console.log('🔍 [CheckForm DEBUG] Recalcul après suppression:', updatedCheques);
+    const newTotal = updatedCheques.reduce((sum, cheque) => {
+      const montant = Number(cheque.montant) || 0;
+      console.log(`🔍 [CheckForm DEBUG] sum=${sum}, montant=${montant}, type=${typeof cheque.montant}`);
+      return sum + montant;
+    }, 0);
+    console.log('🔍 [CheckForm DEBUG] Nouveau total après suppression:', newTotal);
     onTotalChequeAmountChange(newTotal);
   };
 
@@ -55,7 +61,13 @@ const CheckForm: React.FC<CheckFormProps> = ({
 
     // Recalculate total if amount changed
     if (field === 'montant') {
-      const newTotal = updatedCheques.reduce((sum, cheque) => sum + cheque.montant, 0);
+      console.log('🔍 [CheckForm DEBUG] Recalcul après modification montant:', updatedCheques);
+      const newTotal = updatedCheques.reduce((sum, cheque) => {
+        const montant = Number(cheque.montant) || 0;
+        console.log(`🔍 [CheckForm DEBUG] sum=${sum}, montant=${montant}, type=${typeof cheque.montant}, raw=${cheque.montant}`);
+        return sum + montant;
+      }, 0);
+      console.log('🔍 [CheckForm DEBUG] Nouveau total après modification:', newTotal);
       onTotalChequeAmountChange(newTotal);
     }
   };
