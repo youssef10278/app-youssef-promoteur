@@ -24,9 +24,32 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Configuration CORS
+// Configuration CORS - Support de plusieurs domaines
+const allowedOrigins = [
+  'http://localhost:8080',
+  'https://app-youssef-promoteur-production.up.railway.app',
+  'https://www.kbgestion.xyz',
+  'https://kbgestion.xyz'
+];
+
+// Ajouter les domaines depuis les variables d'environnement
+if (process.env.CORS_ORIGIN) {
+  const envOrigins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
+  allowedOrigins.push(...envOrigins);
+}
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:8080',
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Permettre les requêtes sans origin (ex: mobile apps, Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`🚫 CORS: Origine non autorisée: ${origin}`);
+      callback(new Error('Non autorisé par la politique CORS'), false);
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };
@@ -162,7 +185,7 @@ app.use(errorHandler);
 const server = app.listen(PORT, () => {
   console.log(`🚀 Serveur démarré sur le port ${PORT}`);
   console.log(`🌍 Environnement: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📡 CORS autorisé pour: ${process.env.CORS_ORIGIN || 'http://localhost:8080'}`);
+  console.log(`📡 CORS autorisé pour: ${allowedOrigins.join(', ')}`);
 });
 
 // Gestion propre de l'arrêt du serveur
