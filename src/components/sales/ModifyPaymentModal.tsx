@@ -19,15 +19,18 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  CreditCard, 
-  Banknote, 
-  Building2, 
+import {
+  CreditCard,
+  Banknote,
+  Building2,
   DollarSign,
   FileText,
   AlertCircle,
   AlertTriangle
 } from 'lucide-react';
+import { CheckForm } from '@/components/expense/CheckForm';
+import { CheckData } from '@/types/expense';
+import { apiClient } from '@/integrations/api/client';
 import { Sale, PaymentPlan } from '@/types/sale-new';
 import { formatAmount } from '@/utils/payments';
 import { useToast } from '@/hooks/use-toast';
@@ -56,7 +59,11 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const [formData, setFormData] = useState<FormData>({
+  // États pour les chèques associés
+  const [associatedChecks, setAssociatedChecks] = useState<CheckData[]>([]);
+  const [isLoadingChecks, setIsLoadingChecks] = useState(false);
+
+  const [formData, setFormData] = useState<FormData & { cheques: CheckData[] }>({
     montant_paye: payment.montant_paye || 0,
     montant_declare: payment.montant_declare || payment.montant_paye || 0,
     montant_non_declare: payment.montant_non_declare || 0,
@@ -64,8 +71,56 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
     mode_paiement: payment.mode_paiement || 'espece',
     montant_espece: payment.montant_espece || 0,
     montant_cheque: payment.montant_cheque || 0,
-    notes: payment.notes || ''
+    notes: payment.notes || '',
+    cheques: []
   });
+
+  // Charger les chèques associés à ce paiement
+  const loadAssociatedChecks = async () => {
+    if (!payment.id || payment.mode_paiement === 'espece' || payment.mode_paiement === 'virement') {
+      return;
+    }
+
+    setIsLoadingChecks(true);
+    try {
+      // Chercher les chèques liés à cette vente et ce paiement
+      const response = await apiClient.get(`/checks?sale_id=${sale.id}`);
+      const allChecks = response.data || [];
+
+      // Filtrer les chèques qui correspondent à ce paiement par date et montant
+      const paymentDate = payment.date_paiement?.split('T')[0];
+      const relatedChecks = allChecks.filter((check: any) => {
+        const checkDate = check.date_emission?.split('T')[0];
+        return checkDate === paymentDate;
+      });
+
+      // Convertir au format attendu
+      const formattedChecks: CheckData[] = relatedChecks.map((check: any) => ({
+        id: check.id,
+        numero_cheque: check.numero_cheque || '',
+        nom_beneficiaire: check.nom_beneficiaire || '',
+        nom_emetteur: check.nom_emetteur || '',
+        date_emission: check.date_emission ? check.date_emission.split('T')[0] : '',
+        date_encaissement: check.date_encaissement ? check.date_encaissement.split('T')[0] : '',
+        montant: check.montant || 0,
+        description: check.description || '',
+        statut: check.statut || 'emis'
+      }));
+
+      setAssociatedChecks(formattedChecks);
+      setFormData(prev => ({ ...prev, cheques: formattedChecks }));
+
+    } catch (error) {
+      console.error('Erreur lors du chargement des chèques:', error);
+    } finally {
+      setIsLoadingChecks(false);
+    }
+  };
+
+  // Charger les chèques au montage du composant
+  React.useEffect(() => {
+    loadAssociatedChecks();
+  }, [payment.id, sale.id]);
 
   const handleModeChange = (mode: FormData['mode_paiement']) => {
     const newData = { ...formData, mode_paiement: mode };
@@ -82,6 +137,37 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
     }
     
     setFormData(newData);
+  };
+
+  // Handlers pour les chèques
+  const handleChequesChange = (cheques: CheckData[]) => {
+    setFormData(prev => ({ ...prev, cheques }));
+
+    // Recalculer le montant total des chèques
+    const totalCheques = cheques.reduce((sum, cheque) => sum + cheque.montant, 0);
+
+    if (formData.mode_paiement === 'cheque') {
+      setFormData(prev => ({
+        ...prev,
+        cheques,
+        montant_cheque: totalCheques
+      }));
+    } else if (formData.mode_paiement === 'cheque_espece') {
+      setFormData(prev => ({
+        ...prev,
+        cheques,
+        montant_cheque: totalCheques,
+        montant_espece: prev.montant_paye - totalCheques
+      }));
+    }
+  };
+
+  const handleTotalChequeAmountChange = (amount: number) => {
+    setFormData(prev => ({
+      ...prev,
+      montant_cheque: amount,
+      montant_espece: prev.montant_paye - amount
+    }));
   };
 
   const validateForm = (): boolean => {
@@ -143,6 +229,44 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
 
       console.log('✅ [ModifyPaymentModal] Réponse API complète:', response);
       console.log('✅ [ModifyPaymentModal] Données retournées:', response.data);
+
+      // Gérer les chèques si nécessaire
+      if ((formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece') && formData.cheques.length > 0) {
+        // Supprimer les anciens chèques
+        for (const check of associatedChecks) {
+          try {
+            await apiClient.delete(`/checks/${check.id}`);
+            console.log('✅ Ancien chèque supprimé:', check.id);
+          } catch (error) {
+            console.warn('⚠️ Erreur lors de la suppression de l\'ancien chèque:', error);
+          }
+        }
+
+        // Créer les nouveaux chèques
+        for (const cheque of formData.cheques) {
+          try {
+            const checkData = {
+              user_id: sale.user_id,
+              sale_id: sale.id,
+              type_cheque: 'recu',
+              montant: cheque.montant,
+              numero_cheque: cheque.numero_cheque,
+              nom_beneficiaire: cheque.nom_beneficiaire,
+              nom_emetteur: cheque.nom_emetteur,
+              date_emission: cheque.date_emission,
+              date_encaissement: cheque.date_encaissement || null,
+              statut: cheque.statut,
+              facture_recue: false,
+              description: cheque.description
+            };
+
+            await apiClient.post('/checks', checkData);
+            console.log('✅ Nouveau chèque créé:', checkData);
+          } catch (error) {
+            console.error('❌ Erreur lors de la création du chèque:', error);
+          }
+        }
+      }
 
       toast({
         title: "Paiement modifié",
@@ -347,8 +471,76 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
             </Select>
           </div>
 
-          {/* Répartition espèces/chèques */}
-          {formData.mode_paiement === 'cheque_espece' && (
+          {/* Gestion des chèques */}
+          {(formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece') && (
+            <div className="space-y-6">
+              {isLoadingChecks ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Chargement des chèques...</p>
+                </div>
+              ) : (
+                <>
+                  {formData.mode_paiement === 'cheque_espece' ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Section Chèques */}
+                      <div>
+                        <CheckForm
+                          cheques={formData.cheques}
+                          onChequesChange={handleChequesChange}
+                          totalChequeAmount={formData.montant_cheque}
+                          onTotalChequeAmountChange={handleTotalChequeAmountChange}
+                        />
+                      </div>
+
+                      {/* Section Espèces */}
+                      <div>
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm">Montant Espèces</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-2">
+                              <Label htmlFor="montant_espece">Montant en espèces</Label>
+                              <Input
+                                id="montant_espece"
+                                type="number"
+                                step="0.01"
+                                value={formData.montant_espece || ''}
+                                onChange={(e) => {
+                                  const especes = parseFloat(e.target.value) || 0;
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    montant_espece: especes,
+                                    montant_cheque: prev.montant_paye - especes
+                                  }));
+                                }}
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Mode chèque uniquement */
+                    <div>
+                      <CheckForm
+                        cheques={formData.cheques}
+                        onChequesChange={handleChequesChange}
+                        totalChequeAmount={formData.montant_paye}
+                        onTotalChequeAmountChange={(amount) => {
+                          setFormData(prev => ({ ...prev, montant_cheque: amount }));
+                        }}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Répartition espèces/chèques (ancienne version - simplifiée) */}
+          {formData.mode_paiement === 'cheque_espece' && false && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Répartition Espèces/Chèques</CardTitle>
