@@ -58,7 +58,7 @@ export class CheckService {
   static async getChecks(filters: CheckFilters = {}): Promise<Check[]> {
     try {
       const params = new URLSearchParams();
-      
+
       if (filters.type_cheque) params.append('type', filters.type_cheque);
       if (filters.statut) params.append('statut', filters.statut);
       if (filters.searchTerm) {
@@ -66,8 +66,12 @@ export class CheckService {
         // Pour l'instant, on laisse le filtrage côté client
       }
 
+      console.log('🔍 [CheckService] Appel API avec params:', params.toString());
       const response = await apiClient.get(`/checks?${params.toString()}`);
       let checks = response.data || [];
+
+      console.log('🔍 [CheckService] Réponse API brute:', checks);
+      console.log('🔍 [CheckService] Nombre de chèques reçus de l\'API:', checks.length);
 
       // Filtrage côté client pour les critères non supportés par l'API
       if (filters.searchTerm) {
@@ -108,11 +112,14 @@ export class CheckService {
       checks.sort((a: Check, b: Check) => {
         const aValue = a[sortBy as keyof Check];
         const bValue = b[sortBy as keyof Check];
-        
+
         if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
         if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
         return 0;
       });
+
+      console.log('🔍 [CheckService] Chèques finaux après filtrage et tri:', checks);
+      console.log('🔍 [CheckService] Nombre final de chèques:', checks.length);
 
       return checks;
     } catch (error) {

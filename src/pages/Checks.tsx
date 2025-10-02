@@ -107,6 +107,11 @@ const Checks = () => {
         checks = await CheckService.getChecks(checkFilters);
       }
 
+      console.log('🔍 [Checks Page] Chèques récupérés:', checks);
+      console.log('🔍 [Checks Page] Nombre total de chèques:', checks.length);
+      console.log('🔍 [Checks Page] Filtres appliqués:', checkFilters);
+      console.log('🔍 [Checks Page] Projet sélectionné:', selectedProject);
+
       setChecks(checks);
 
     } catch (error: any) {
