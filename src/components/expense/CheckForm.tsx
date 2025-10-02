@@ -53,7 +53,9 @@ const CheckForm: React.FC<CheckFormProps> = ({
   const updateCheque = (index: number, field: keyof CheckData, value: string | number) => {
     const updatedCheques = cheques.map((cheque, i) => {
       if (i === index) {
-        return { ...cheque, [field]: value };
+        // ✅ CORRECTION : Forcer la conversion en number pour le montant
+        const finalValue = field === 'montant' ? Number(value) || 0 : value;
+        return { ...cheque, [field]: finalValue };
       }
       return cheque;
     });

@@ -119,7 +119,7 @@ export function ModifyExpenseModal({
         nom_emetteur: check.nom_emetteur || '',
         date_emission: check.date_emission ? check.date_emission.split('T')[0] : '',
         date_encaissement: check.date_encaissement ? check.date_encaissement.split('T')[0] : '',
-        montant: check.montant || 0,
+        montant: Number(check.montant) || 0, // ✅ CORRECTION : Forcer la conversion en number
         description: check.description || '',
         statut: check.statut || 'emis'
       }));
