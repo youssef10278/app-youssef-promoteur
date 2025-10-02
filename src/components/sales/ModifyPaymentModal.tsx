@@ -122,6 +122,84 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
     loadAssociatedChecks();
   }, [payment.id, sale.id]);
 
+  // Fonction pour mettre à jour les chèques de manière intelligente
+  const updateChecksIntelligently = async (
+    newChecks: CheckData[],
+    existingChecks: CheckData[],
+    sale: any
+  ) => {
+    console.log('🔄 Mise à jour intelligente des chèques...');
+    console.log('📝 Nouveaux chèques:', newChecks);
+    console.log('📋 Chèques existants:', existingChecks);
+
+    // 1. Mettre à jour les chèques existants
+    for (let i = 0; i < Math.min(newChecks.length, existingChecks.length); i++) {
+      const newCheck = newChecks[i];
+      const existingCheck = existingChecks[i];
+
+      try {
+        const updateData = {
+          montant: newCheck.montant,
+          numero_cheque: newCheck.numero_cheque,
+          nom_beneficiaire: newCheck.nom_beneficiaire,
+          nom_emetteur: newCheck.nom_emetteur,
+          date_emission: newCheck.date_emission,
+          date_encaissement: newCheck.date_encaissement || null,
+          statut: newCheck.statut,
+          description: newCheck.description
+        };
+
+        await apiClient.put(`/checks/${existingCheck.id}`, updateData);
+        console.log(`✅ Chèque mis à jour: ${existingCheck.id}`, updateData);
+      } catch (error) {
+        console.error(`❌ Erreur lors de la mise à jour du chèque ${existingCheck.id}:`, error);
+      }
+    }
+
+    // 2. Créer les nouveaux chèques (s'il y en a plus que d'existants)
+    if (newChecks.length > existingChecks.length) {
+      for (let i = existingChecks.length; i < newChecks.length; i++) {
+        const newCheck = newChecks[i];
+        try {
+          const checkData = {
+            user_id: sale.user_id,
+            sale_id: sale.id,
+            type_cheque: 'recu',
+            montant: newCheck.montant,
+            numero_cheque: newCheck.numero_cheque,
+            nom_beneficiaire: newCheck.nom_beneficiaire,
+            nom_emetteur: newCheck.nom_emetteur,
+            date_emission: newCheck.date_emission,
+            date_encaissement: newCheck.date_encaissement || null,
+            statut: newCheck.statut,
+            facture_recue: false,
+            description: newCheck.description
+          };
+
+          await apiClient.post('/checks', checkData);
+          console.log('✅ Nouveau chèque créé:', checkData);
+        } catch (error) {
+          console.error('❌ Erreur lors de la création du nouveau chèque:', error);
+        }
+      }
+    }
+
+    // 3. Supprimer les chèques en trop (s'il y en a moins que d'existants)
+    if (existingChecks.length > newChecks.length) {
+      for (let i = newChecks.length; i < existingChecks.length; i++) {
+        const checkToDelete = existingChecks[i];
+        try {
+          await apiClient.delete(`/checks/${checkToDelete.id}`);
+          console.log(`✅ Chèque supprimé: ${checkToDelete.id}`);
+        } catch (error) {
+          console.error(`❌ Erreur lors de la suppression du chèque ${checkToDelete.id}:`, error);
+        }
+      }
+    }
+
+    console.log('🎉 Mise à jour intelligente des chèques terminée');
+  };
+
   const handleModeChange = (mode: FormData['mode_paiement']) => {
     const newData = { ...formData, mode_paiement: mode };
     
@@ -230,40 +308,17 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
       console.log('✅ [ModifyPaymentModal] Réponse API complète:', response);
       console.log('✅ [ModifyPaymentModal] Données retournées:', response.data);
 
-      // Gérer les chèques si nécessaire
-      if ((formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece') && formData.cheques.length > 0) {
-        // Supprimer les anciens chèques
+      // Gérer les chèques de manière intelligente (mise à jour au lieu de suppression/recréation)
+      if (formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece') {
+        await updateChecksIntelligently(formData.cheques, associatedChecks, sale);
+      } else {
+        // Si le mode de paiement ne nécessite plus de chèques, supprimer les anciens
         for (const check of associatedChecks) {
           try {
             await apiClient.delete(`/checks/${check.id}`);
-            console.log('✅ Ancien chèque supprimé:', check.id);
+            console.log('✅ Chèque supprimé (mode de paiement changé):', check.id);
           } catch (error) {
-            console.warn('⚠️ Erreur lors de la suppression de l\'ancien chèque:', error);
-          }
-        }
-
-        // Créer les nouveaux chèques
-        for (const cheque of formData.cheques) {
-          try {
-            const checkData = {
-              user_id: sale.user_id,
-              sale_id: sale.id,
-              type_cheque: 'recu',
-              montant: cheque.montant,
-              numero_cheque: cheque.numero_cheque,
-              nom_beneficiaire: cheque.nom_beneficiaire,
-              nom_emetteur: cheque.nom_emetteur,
-              date_emission: cheque.date_emission,
-              date_encaissement: cheque.date_encaissement || null,
-              statut: cheque.statut,
-              facture_recue: false,
-              description: cheque.description
-            };
-
-            await apiClient.post('/checks', checkData);
-            console.log('✅ Nouveau chèque créé:', checkData);
-          } catch (error) {
-            console.error('❌ Erreur lors de la création du chèque:', error);
+            console.warn('⚠️ Erreur lors de la suppression du chèque:', error);
           }
         }
       }
