@@ -485,7 +485,7 @@ router.put('/plans/:planId', asyncHandler(async (req: Request, res: Response) =>
   // Vérifier que le plan appartient à l'utilisateur et récupérer les infos de la vente
   const planCheck = await query(
     `SELECT pp.id, pp.sale_id, pp.montant_paye as current_montant_paye,
-            s.prix_total, s.montant_paye as total_montant_paye
+            s.prix_total
      FROM payment_plans pp
      LEFT JOIN sales s ON pp.sale_id = s.id
      WHERE pp.id = $1 AND pp.user_id = $2`,
@@ -501,7 +501,16 @@ router.put('/plans/:planId', asyncHandler(async (req: Request, res: Response) =>
 
   const plan = planCheck.rows[0];
   const prixTotal = parseFloat(plan.prix_total || 0);
-  const montantDejaPayeAutres = parseFloat(plan.total_montant_paye || 0) - parseFloat(plan.current_montant_paye || 0);
+
+  // Calculer le montant total déjà payé pour cette vente (en excluant le paiement actuel)
+  const totalPayeResult = await query(
+    `SELECT COALESCE(SUM(montant_paye), 0) as total_paye
+     FROM payment_plans
+     WHERE sale_id = $1 AND id != $2`,
+    [plan.sale_id, planId]
+  );
+
+  const montantDejaPayeAutres = parseFloat(totalPayeResult.rows[0].total_paye || 0);
   const nouveauMontantPaye = parseFloat(paymentData.montant_paye || 0);
   const montantTotalApresModification = montantDejaPayeAutres + nouveauMontantPaye;
 
