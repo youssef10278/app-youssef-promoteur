@@ -34,7 +34,6 @@ import { apiClient } from '@/integrations/api/client';
 import { Sale, PaymentPlan } from '@/types/sale-new';
 import { formatAmount } from '@/utils/payments';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/integrations/api/client';
 
 interface ModifyPaymentModalProps {
   sale: Sale;
@@ -109,7 +108,7 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
         nom_emetteur: check.nom_emetteur || '',
         date_emission: check.date_emission ? check.date_emission.split('T')[0] : '',
         date_encaissement: check.date_encaissement ? check.date_encaissement.split('T')[0] : '',
-        montant: check.montant || 0,
+        montant: Number(check.montant) || 0, // ✅ CORRECTION : Forcer la conversion en number
         description: check.description || '',
         statut: check.statut || 'emis'
       }));
