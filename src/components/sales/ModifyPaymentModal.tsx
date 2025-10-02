@@ -28,7 +28,7 @@ import {
   AlertCircle,
   AlertTriangle
 } from 'lucide-react';
-import { CheckForm } from '@/components/expense/CheckForm';
+import CheckForm from '@/components/expense/CheckForm';
 import { CheckData } from '@/types/expense';
 import { apiClient } from '@/integrations/api/client';
 import { Sale, PaymentPlan } from '@/types/sale-new';

@@ -223,3 +223,4 @@ const CheckForm: React.FC<CheckFormProps> = ({
 };
 
 export default CheckForm;
+export { CheckForm };
