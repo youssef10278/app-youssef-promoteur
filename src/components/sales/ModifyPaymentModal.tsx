@@ -337,8 +337,15 @@ export function ModifyPaymentModal({ sale, payment, onClose, onSuccess }: Modify
       console.log('✅ [ModifyPaymentModal] Données retournées:', response.data);
 
       // Gérer les chèques de manière intelligente (mise à jour au lieu de suppression/recréation)
-      if (formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece') {
+      console.log('🔍 [DEBUG] Mode de paiement:', formData.mode_paiement);
+      console.log('🔍 [DEBUG] Condition chèques:', formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece');
+      console.log('🔍 [DEBUG] formData.cheques:', formData.cheques);
+      console.log('🔍 [DEBUG] associatedChecks:', associatedChecks);
+
+      if (formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece' || formData.mode_paiement === 'cheque_et_espece') {
+        console.log('🚀 [DEBUG] Appel de updateChecksIntelligently...');
         await updateChecksIntelligently(formData.cheques, associatedChecks, sale);
+        console.log('✅ [DEBUG] updateChecksIntelligently terminé');
       } else {
         // Si le mode de paiement ne nécessite plus de chèques, supprimer les anciens
         for (const check of associatedChecks) {
