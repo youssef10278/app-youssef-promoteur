@@ -12,7 +12,13 @@ router.use(authenticateToken);
 
 // Obtenir tous les chèques de l'utilisateur
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
-  const { type, statut, project_id, payment_plan_id } = req.query;
+  const { type, statut, project_id, payment_plan_id, expense_id, sale_id } = req.query;
+
+  // Log pour debug
+  console.log('🔍 Requête chèques avec filtres:', {
+    type, statut, project_id, payment_plan_id, expense_id, sale_id,
+    user_id: req.user!.userId
+  });
 
   let whereConditions = ['c.user_id = $1'];
   const queryParams = [req.user!.userId];
@@ -42,6 +48,18 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     paramIndex++;
   }
 
+  if (expense_id) {
+    whereConditions.push(`c.expense_id = $${paramIndex}`);
+    queryParams.push(expense_id as string);
+    paramIndex++;
+  }
+
+  if (sale_id) {
+    whereConditions.push(`c.sale_id = $${paramIndex}`);
+    queryParams.push(sale_id as string);
+    paramIndex++;
+  }
+
   const whereClause = whereConditions.join(' AND ');
 
   const result = await query(
@@ -54,6 +72,12 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
      ORDER BY c.date_emission DESC`,
     queryParams
   );
+
+  // Log pour debug
+  console.log(`✅ Chèques trouvés: ${result.rows.length} résultats`);
+  if (expense_id) {
+    console.log(`🎯 Filtrage par expense_id: ${expense_id} - Résultats: ${result.rows.length}`);
+  }
 
   const response: ApiResponse = {
     success: true,
