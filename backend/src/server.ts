@@ -31,20 +31,31 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-// Rate limiting - Plus permissif pour le développement
+// Rate limiting - Plus permissif pour le développement et production initiale
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'), // 1 minute
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000'), // 1000 requêtes par minute
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'), // 1 minute par défaut
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000'), // 1000 requêtes par minute par défaut
   message: {
     error: 'Trop de requêtes, veuillez réessayer plus tard.'
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // Skip rate limiting pour les requêtes de développement
+  // Skip rate limiting pour les requêtes de développement et Railway health checks
   skip: (req) => {
     // Skip pour localhost en développement
-    return process.env.NODE_ENV === 'development' && 
-           (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1');
+    if (process.env.NODE_ENV === 'development' &&
+        (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1')) {
+      return true;
+    }
+    // Skip pour Railway health checks
+    if (req.headers['user-agent']?.includes('RailwayHealthCheck')) {
+      return true;
+    }
+    // Skip pour les IPs Railway internes
+    if (req.ip?.startsWith('100.64.') || req.ip?.startsWith('::ffff:100.64.')) {
+      return true;
+    }
+    return false;
   }
 });
 
@@ -55,6 +66,12 @@ app.use(compression());
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Logging pour debug du rate limiting
+app.use((req, res, next) => {
+  console.log(`🔍 Request from IP: ${req.ip}, User-Agent: ${req.headers['user-agent']}`);
+  next();
+});
+
 app.use(limiter);
 
 // Health check
