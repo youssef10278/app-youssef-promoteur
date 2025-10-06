@@ -222,16 +222,16 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Progression du paiement</span>
-                    <span>{Math.round(((expense.montant_total_paye || 0) / expense.montant_total) * 100)}%</span>
+                    <span>{Math.round(((Number(expense.montant_total_paye) || 0) / expense.montant_total) * 100)}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(((expense.montant_total_paye || 0) / expense.montant_total) * 100, 100)}%` }}
+                      style={{ width: `${Math.min(((Number(expense.montant_total_paye) || 0) / expense.montant_total) * 100, 100)}%` }}
                     ></div>
                   </div>
                   <div className="text-xs text-muted-foreground text-center">
-                    Restant: {formatAmount((expense.montant_restant || (expense.montant_total - (expense.montant_total_paye || 0))))} DH
+                    Restant: {formatAmount((Number(expense.montant_restant) || (expense.montant_total - (Number(expense.montant_total_paye) || 0))))} DH
                   </div>
                 </div>
               )}

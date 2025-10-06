@@ -7,6 +7,67 @@ import { ApiResponse } from '../types';
 
 const router = Router();
 
+// Fonction utilitaire pour mettre à jour les totaux de paiement d'une dépense
+async function updateExpensePaymentTotals(expenseId: string, userId: string) {
+  console.log('🔄 [updateExpensePaymentTotals] Mise à jour des totaux pour expense:', expenseId);
+
+  // Calculer le total payé
+  const totalResult = await query(
+    `SELECT
+       COALESCE(SUM(CAST(montant_paye AS DECIMAL)), 0) as total_paye,
+       COUNT(*) as nombre_paiements
+     FROM expense_payment_plans
+     WHERE expense_id = $1 AND user_id = $2`,
+    [expenseId, userId]
+  );
+
+  const totalPaye = parseFloat(totalResult.rows[0].total_paye) || 0;
+  const nombrePaiements = parseInt(totalResult.rows[0].nombre_paiements) || 0;
+
+  console.log('🔄 Total calculé:', { totalPaye, nombrePaiements });
+
+  // Récupérer le montant total de la dépense
+  const expenseResult = await query(
+    'SELECT montant_total FROM expenses WHERE id = $1 AND user_id = $2',
+    [expenseId, userId]
+  );
+
+  if (expenseResult.rows.length === 0) {
+    console.error('❌ Dépense non trouvée pour mise à jour totaux');
+    return;
+  }
+
+  const montantTotal = parseFloat(expenseResult.rows[0].montant_total) || 0;
+  const montantRestant = montantTotal - totalPaye;
+
+  // Déterminer le statut de paiement
+  let statutPaiement = 'non_paye';
+  if (totalPaye > 0 && totalPaye < montantTotal) {
+    statutPaiement = 'partiellement_paye';
+  } else if (totalPaye >= montantTotal) {
+    statutPaiement = 'paye';
+  }
+
+  console.log('🔄 Mise à jour:', {
+    montantTotal,
+    totalPaye,
+    montantRestant,
+    statutPaiement
+  });
+
+  // Mettre à jour la dépense
+  await query(
+    `UPDATE expenses
+     SET montant_total_paye = $1,
+         montant_restant = $2,
+         statut_paiement = $3
+     WHERE id = $4 AND user_id = $5`,
+    [totalPaye, montantRestant, statutPaiement, expenseId, userId]
+  );
+
+  console.log('✅ [updateExpensePaymentTotals] Totaux mis à jour avec succès');
+}
+
 // Toutes les routes nécessitent une authentification
 router.use(authenticateToken);
 
@@ -121,6 +182,9 @@ router.post('/plans', asyncHandler(async (req: Request, res: Response) => {
 
   console.log('✅ [POST /plans] Plan de paiement créé:', updateResult.rows[0].id);
 
+  // Mettre à jour les totaux de la dépense
+  await updateExpensePaymentTotals(paymentData.expense_id, req.user!.userId);
+
   // Créer les chèques associés si nécessaire
   if (paymentData.cheques && paymentData.cheques.length > 0) {
     console.log('🔧 [POST /plans] Création des chèques associés:', paymentData.cheques.length);
@@ -217,6 +281,9 @@ router.put('/plans/:planId', asyncHandler(async (req: Request, res: Response) =>
   );
 
   console.log('✅ [PUT /plans/:planId] Plan de paiement mis à jour');
+
+  // Mettre à jour les totaux de la dépense
+  await updateExpensePaymentTotals(plan.expense_id, req.user!.userId);
 
   const response: ApiResponse = {
     success: true,
@@ -319,6 +386,9 @@ router.delete('/plans/:id', asyncHandler(async (req: Request, res: Response) => 
         [plan.expense_id, req.user!.userId]
       );
     }
+
+    // Mettre à jour les totaux de la dépense après suppression
+    await updateExpensePaymentTotals(plan.expense_id, req.user!.userId);
 
     res.json({
       success: true,

@@ -65,8 +65,12 @@ export function ExpenseDetailsModal({ expense, onRefresh }: ExpenseDetailsModalP
     }
   };
 
-  // Calculer les totaux
-  const totalPaid = localPaymentPlans.reduce((sum, plan) => sum + plan.montant_paye, 0);
+  // Calculer les totaux - FIX: Convertir en nombre pour éviter la concaténation
+  const totalPaid = localPaymentPlans.reduce((sum, plan) => {
+    const montantPaye = Number(plan.montant_paye) || 0;
+    console.log(`🔍 [ExpenseDetails] Calcul total - sum=${sum}, montant_paye=${plan.montant_paye} (${typeof plan.montant_paye}) -> ${montantPaye}`);
+    return sum + montantPaye;
+  }, 0);
   const remainingAmount = expense.montant_total - totalPaid;
   const paymentProgress = expense.montant_total > 0 ? (totalPaid / expense.montant_total) * 100 : 0;
 
