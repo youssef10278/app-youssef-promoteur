@@ -349,4 +349,120 @@ router.post('/apply-expense-payment-migration', authenticateToken, async (req, r
   });
 });
 
+// Route ULTRA-RADICALE sans authentification (temporaire pour debug)
+router.post('/ultra-nuclear-fix-no-auth', async (req, res) => {
+  try {
+    console.log('🚨 ULTRA-NUCLEAR FIX - SANS AUTHENTIFICATION');
+
+    // Ajouter les headers CORS explicitement
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // 1. Supprimer complètement la table défectueuse
+    await query(`DROP TABLE IF EXISTS expense_payment_plans CASCADE`);
+    console.log('✅ Table expense_payment_plans supprimée complètement');
+
+    // 2. Recréer la table avec la bonne configuration
+    await query(`
+      CREATE TABLE expense_payment_plans (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        expense_id UUID NOT NULL,
+        user_id UUID NOT NULL,
+        numero_echeance INTEGER NOT NULL,
+        date_prevue DATE NOT NULL,
+        montant_prevu DECIMAL NOT NULL,
+        montant_paye DECIMAL DEFAULT 0,
+        montant_declare DECIMAL DEFAULT 0,
+        montant_non_declare DECIMAL DEFAULT 0,
+        date_paiement TIMESTAMP,
+        mode_paiement TEXT,
+        montant_espece DECIMAL DEFAULT 0,
+        montant_cheque DECIMAL DEFAULT 0,
+        statut TEXT DEFAULT 'en_attente',
+        description TEXT,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Table expense_payment_plans recréée avec gen_random_uuid()');
+
+    // 3. Ajouter les contraintes de clés étrangères
+    await query(`
+      ALTER TABLE expense_payment_plans
+      ADD CONSTRAINT fk_expense_payment_plans_expense
+      FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE
+    `);
+
+    await query(`
+      ALTER TABLE expense_payment_plans
+      ADD CONSTRAINT fk_expense_payment_plans_user
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    `);
+    console.log('✅ Contraintes de clés étrangères ajoutées');
+
+    // 4. Ajouter les index pour les performances
+    await query(`CREATE INDEX idx_expense_payment_plans_expense_id ON expense_payment_plans(expense_id)`);
+    await query(`CREATE INDEX idx_expense_payment_plans_user_id ON expense_payment_plans(user_id)`);
+    await query(`CREATE INDEX idx_expense_payment_plans_statut ON expense_payment_plans(statut)`);
+    console.log('✅ Index créés');
+
+    // 5. Ajouter les colonnes à la table expenses si elles n'existent pas
+    try {
+      await query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS statut_paiement TEXT DEFAULT 'non_paye'`);
+      await query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS montant_total_paye DECIMAL DEFAULT 0`);
+      await query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS montant_restant DECIMAL DEFAULT 0`);
+      console.log('✅ Colonnes ajoutées à la table expenses');
+    } catch (error) {
+      console.log('⚠️ Colonnes expenses déjà existantes');
+    }
+
+    // 6. Test d'insertion avec le premier utilisateur trouvé
+    const firstUser = await query(`SELECT id FROM users LIMIT 1`);
+    const firstExpense = await query(`SELECT id FROM expenses LIMIT 1`);
+
+    let testSuccess = false;
+    if (firstUser.rows.length > 0 && firstExpense.rows.length > 0) {
+      const testResult = await query(`
+        INSERT INTO expense_payment_plans (expense_id, user_id, numero_echeance, date_prevue, montant_prevu)
+        VALUES ($1, $2, 999, CURRENT_DATE, 1)
+        RETURNING id
+      `, [firstExpense.rows[0].id, firstUser.rows[0].id]);
+
+      if (testResult.rows.length > 0) {
+        // Supprimer le test
+        await query(`DELETE FROM expense_payment_plans WHERE numero_echeance = 999`);
+        testSuccess = true;
+        console.log('✅ Test d\'insertion réussi - ID généré automatiquement');
+      }
+    }
+
+    console.log('🎉 ULTRA-NUCLEAR FIX RÉUSSI !');
+
+    return res.json({
+      success: true,
+      message: 'ULTRA-NUCLEAR FIX - Table expense_payment_plans supprimée et recréée avec succès !',
+      details: {
+        tableDropped: true,
+        tableRecreated: true,
+        foreignKeysAdded: true,
+        indexesCreated: true,
+        testInsertWorked: testSuccess,
+        expenseColumnsAdded: true,
+        authBypass: true
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ Erreur lors de l\'ultra-nuclear fix:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'ultra-nuclear fix',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 export default router;

@@ -125,6 +125,43 @@ router.post('/plans', asyncHandler(async (req: Request, res: Response) => {
   }
 
   const expense = expenseCheck.rows[0];
+  const montantTotal = parseFloat(expense.montant_total) || 0;
+
+  // VALIDATION CRITIQUE : Vérifier les surpaiements
+  const totalPayeResult = await query(
+    `SELECT COALESCE(SUM(CAST(montant_paye AS DECIMAL)), 0) as total_paye
+     FROM expense_payment_plans
+     WHERE expense_id = $1 AND user_id = $2`,
+    [paymentData.expense_id, req.user!.userId]
+  );
+
+  const montantDejaPayeAutres = parseFloat(totalPayeResult.rows[0].total_paye || 0);
+  const nouveauMontantPaye = parseFloat(paymentData.montant_paye || 0);
+  const montantTotalApresModification = montantDejaPayeAutres + nouveauMontantPaye;
+
+  // VALIDATION CRITIQUE : Empêcher les surpaiements
+  if (montantTotalApresModification > montantTotal) {
+    const montantMaxAutorise = montantTotal - montantDejaPayeAutres;
+    console.error(`❌ Tentative de surpaiement détectée pour dépense:`, {
+      expenseId: paymentData.expense_id,
+      montantTotal,
+      montantDejaPayeAutres,
+      nouveauMontantPaye,
+      montantTotalApresModification,
+      montantMaxAutorise
+    });
+    throw createError(
+      `Le montant ne peut pas dépasser ${montantMaxAutorise.toFixed(2)} DH (montant total: ${montantTotal.toFixed(2)} DH, déjà payé: ${montantDejaPayeAutres.toFixed(2)} DH)`,
+      400
+    );
+  }
+
+  console.log('✅ Validation surpaiement OK:', {
+    montantTotal,
+    montantDejaPayeAutres,
+    nouveauMontantPaye,
+    montantTotalApresModification
+  });
 
   // Calculer le prochain numéro d'échéance
   const existingPlansResult = await query(
