@@ -170,10 +170,15 @@ router.post('/fix-and-apply-expense-payment-migration', authenticateToken, async
   }
 });
 
-// Route temporaire pour appliquer la migration (ANCIENNE VERSION - GARDÉE POUR COMPATIBILITÉ)
+// Route temporaire pour appliquer la migration (ANCIENNE VERSION - REDIRIGE VERS LA NOUVELLE)
 router.post('/apply-expense-payment-migration', authenticateToken, async (req, res) => {
-  // Rediriger vers la nouvelle route corrigée
-  return router.handle({ ...req, url: '/fix-and-apply-expense-payment-migration' } as any, res, () => {});
+  console.log('🔄 Redirection vers la nouvelle route de migration corrigée...');
+
+  res.json({
+    success: false,
+    message: 'Cette route est obsolète. Utilisez /api/migrate/fix-and-apply-expense-payment-migration',
+    redirect: '/api/migrate/fix-and-apply-expense-payment-migration'
+  });
 });
 
 export default router;
