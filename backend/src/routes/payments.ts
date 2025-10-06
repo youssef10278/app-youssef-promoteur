@@ -472,13 +472,7 @@ router.delete('/plans/:id', asyncHandler(async (req: Request, res: Response) => 
   console.log('🗑️ Plan trouvé:', plan);
 
   // Supprimer d'abord les chèques associés à ce paiement
-  // 1. Supprimer les chèques de la table payment_checks (nouveau système)
-  const paymentChecksResult = await query(
-    'DELETE FROM payment_checks WHERE payment_plan_id = $1 AND user_id = $2 RETURNING id',
-    [id, req.user!.userId]
-  );
-
-  // 2. Supprimer les chèques de la table checks (ancien système) liés à cette vente
+  // Supprimer les chèques de la table checks liés à cette vente et ce paiement
   // Note: La table checks n'a pas payment_plan_id, donc on supprime par sale_id et description
   const checksResult = await query(
     `DELETE FROM checks WHERE sale_id = $1 AND user_id = $2
@@ -491,9 +485,8 @@ router.delete('/plans/:id', asyncHandler(async (req: Request, res: Response) => 
     ]
   );
 
-  const totalChecksDeleted = paymentChecksResult.rows.length + checksResult.rows.length;
+  const totalChecksDeleted = checksResult.rows.length;
   console.log('🗑️ Chèques supprimés:', {
-    payment_checks: paymentChecksResult.rows.length,
     checks: checksResult.rows.length,
     total: totalChecksDeleted
   });
