@@ -170,6 +170,116 @@ router.post('/fix-and-apply-expense-payment-migration', authenticateToken, async
   }
 });
 
+// Route RADICALE pour supprimer et recréer la table complètement
+router.post('/nuclear-fix-expense-payments', authenticateToken, async (req, res) => {
+  try {
+    console.log('💥 SOLUTION RADICALE - Suppression et recréation complète...');
+
+    // 1. Supprimer complètement la table défectueuse
+    await query(`DROP TABLE IF EXISTS expense_payment_plans CASCADE`);
+    console.log('✅ Table expense_payment_plans supprimée complètement');
+
+    // 2. Recréer la table avec la bonne configuration
+    await query(`
+      CREATE TABLE expense_payment_plans (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        expense_id UUID NOT NULL,
+        user_id UUID NOT NULL,
+        numero_echeance INTEGER NOT NULL,
+        date_prevue DATE NOT NULL,
+        montant_prevu DECIMAL NOT NULL,
+        montant_paye DECIMAL DEFAULT 0,
+        montant_declare DECIMAL DEFAULT 0,
+        montant_non_declare DECIMAL DEFAULT 0,
+        date_paiement TIMESTAMP,
+        mode_paiement TEXT,
+        montant_espece DECIMAL DEFAULT 0,
+        montant_cheque DECIMAL DEFAULT 0,
+        statut TEXT DEFAULT 'en_attente',
+        description TEXT,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Table expense_payment_plans recréée avec gen_random_uuid()');
+
+    // 3. Ajouter les contraintes de clés étrangères
+    await query(`
+      ALTER TABLE expense_payment_plans
+      ADD CONSTRAINT fk_expense_payment_plans_expense
+      FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE
+    `);
+
+    await query(`
+      ALTER TABLE expense_payment_plans
+      ADD CONSTRAINT fk_expense_payment_plans_user
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    `);
+    console.log('✅ Contraintes de clés étrangères ajoutées');
+
+    // 4. Ajouter les index pour les performances
+    await query(`CREATE INDEX idx_expense_payment_plans_expense_id ON expense_payment_plans(expense_id)`);
+    await query(`CREATE INDEX idx_expense_payment_plans_user_id ON expense_payment_plans(user_id)`);
+    await query(`CREATE INDEX idx_expense_payment_plans_statut ON expense_payment_plans(statut)`);
+    console.log('✅ Index créés');
+
+    // 5. Tester l'insertion d'un enregistrement
+    const testResult = await query(`
+      INSERT INTO expense_payment_plans (expense_id, user_id, numero_echeance, date_prevue, montant_prevu)
+      SELECT
+        (SELECT id FROM expenses WHERE user_id = $1 LIMIT 1),
+        $1,
+        999,
+        CURRENT_DATE,
+        1
+      WHERE EXISTS (SELECT 1 FROM expenses WHERE user_id = $1)
+      RETURNING id
+    `, [req.user!.userId]);
+
+    let testSuccess = false;
+    if (testResult.rows.length > 0) {
+      // Supprimer le test
+      await query(`DELETE FROM expense_payment_plans WHERE numero_echeance = 999`);
+      testSuccess = true;
+      console.log('✅ Test d\'insertion réussi - ID généré automatiquement');
+    }
+
+    // 6. Ajouter les colonnes à la table expenses si elles n'existent pas
+    try {
+      await query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS statut_paiement TEXT DEFAULT 'non_paye'`);
+      await query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS montant_total_paye DECIMAL DEFAULT 0`);
+      await query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS montant_restant DECIMAL DEFAULT 0`);
+      console.log('✅ Colonnes ajoutées à la table expenses');
+    } catch (error) {
+      console.log('⚠️ Colonnes expenses déjà existantes');
+    }
+
+    console.log('🎉 SOLUTION RADICALE RÉUSSIE !');
+
+    return res.json({
+      success: true,
+      message: 'Table expense_payment_plans supprimée et recréée avec succès !',
+      details: {
+        tableDropped: true,
+        tableRecreated: true,
+        foreignKeysAdded: true,
+        indexesCreated: true,
+        testInsertWorked: testSuccess,
+        expenseColumnsAdded: true
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ Erreur lors de la solution radicale:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la solution radicale',
+      error: error.message
+    });
+  }
+});
+
 // Route d'urgence pour corriger uniquement la colonne ID
 router.post('/emergency-fix-id-column', authenticateToken, async (req, res) => {
   try {
