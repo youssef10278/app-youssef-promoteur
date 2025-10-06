@@ -17,6 +17,7 @@ import salesRoutes from './routes/sales';
 import expenseRoutes from './routes/expenses';
 import checkRoutes from './routes/checks';
 import paymentRoutes from './routes/payments';
+import expensePaymentRoutes from './routes/expensePayments';
 import companySettingsRoutes from './routes/companySettings';
 
 dotenv.config();
@@ -166,6 +167,7 @@ app.use('/api/sales', salesRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/checks', checkRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/expense-payments', expensePaymentRoutes);
 app.use('/api/company-settings', companySettingsRoutes);
 
 // Route de base

@@ -32,6 +32,32 @@ export interface Expense {
   user_id: string;
   projects: { nom: string };
   cheques?: CheckData[];
+  // Nouveaux champs pour les paiements par tranches
+  statut_paiement?: 'non_paye' | 'partiellement_paye' | 'paye';
+  montant_total_paye?: number;
+  montant_restant?: number;
+  expense_payment_plans?: ExpensePaymentPlan[];
+}
+
+export interface ExpensePaymentPlan {
+  id: string;
+  expense_id: string;
+  user_id: string;
+  numero_echeance: number;
+  date_prevue: string;
+  montant_prevu: number;
+  montant_paye: number;
+  montant_declare: number;
+  montant_non_declare: number;
+  date_paiement?: string;
+  mode_paiement?: PaymentMode;
+  montant_espece: number;
+  montant_cheque: number;
+  statut: 'en_attente' | 'paye' | 'en_retard' | 'annule';
+  description?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ExpenseFilters {

@@ -316,6 +316,32 @@ class ApiClient {
     return this.request<any>(`/expenses/stats/project/${projectId}`);
   }
 
+  // ==================== PAIEMENTS DE DÉPENSES ====================
+
+  async getExpensePaymentPlans(expenseId: string) {
+    return this.request<any[]>(`/expense-payments/plans/expense/${expenseId}`);
+  }
+
+  async createExpensePaymentPlan(planData: any) {
+    return this.request<any>('/expense-payments/plans', {
+      method: 'POST',
+      body: JSON.stringify(planData),
+    });
+  }
+
+  async updateExpensePaymentPlan(id: string, planData: any) {
+    return this.request<any>(`/expense-payments/plans/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(planData),
+    });
+  }
+
+  async deleteExpensePaymentPlan(id: string) {
+    return this.request<any>(`/expense-payments/plans/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // ==================== CHÈQUES ====================
 
   async getChecks(filters?: any) {
