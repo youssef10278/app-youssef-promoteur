@@ -114,6 +114,13 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
 
   // Fonction pour supprimer un paiement
   const handleDeletePayment = async (paymentId: string, paymentNumber: number) => {
+    console.log('🗑️ [SaleDetailsModal] Tentative de suppression:', {
+      paymentId,
+      paymentNumber,
+      saleId: sale.id,
+      saleStatus: sale.statut
+    });
+
     if (!confirm(`Êtes-vous sûr de vouloir supprimer le paiement #${paymentNumber} ? Cette action est irréversible.`)) {
       return;
     }
@@ -123,11 +130,12 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
       console.log('🗑️ [SaleDetailsModal] Suppression du paiement:', paymentId);
 
       const response = await apiClient.deletePaymentPlan(paymentId);
+      console.log('🗑️ [SaleDetailsModal] Réponse API:', response);
 
       if (response.success) {
         toast({
           title: "Paiement supprimé",
-          description: `Le paiement #${paymentNumber} a été supprimé avec succès`,
+          description: response.message || `Le paiement #${paymentNumber} a été supprimé avec succès`,
         });
 
         // Recharger les données après suppression
@@ -495,7 +503,17 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
                           <div className="flex items-center justify-end space-x-2">
                             {getPaymentStatusBadge(plan.statut)}
                             {/* Boutons d'action - Seulement pour les paiements réels */}
-                            {!plan.id.startsWith('virtual-') && plan.montant_paye > 0 && (
+                            {(() => {
+                              const canShowButtons = !plan.id.startsWith('virtual-') && plan.montant_paye > 0;
+                              console.log('🔍 [SaleDetailsModal] Boutons pour paiement:', {
+                                id: plan.id,
+                                numero_echeance: plan.numero_echeance,
+                                montant_paye: plan.montant_paye,
+                                isVirtual: plan.id.startsWith('virtual-'),
+                                canShowButtons
+                              });
+                              return canShowButtons;
+                            })() && (
                               <>
                                 <Button
                                   size="sm"

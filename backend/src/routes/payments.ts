@@ -455,18 +455,41 @@ router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
 router.delete('/plans/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
+  console.log('🗑️ [DELETE /plans/:id] Suppression du paiement:', id);
+  console.log('🗑️ User ID:', req.user!.userId);
+
+  // Vérifier que le plan appartient à l'utilisateur et récupérer les infos
+  const planCheck = await query(
+    'SELECT id, sale_id, numero_echeance FROM payment_plans WHERE id = $1 AND user_id = $2',
+    [id, req.user!.userId]
+  );
+
+  if (planCheck.rows.length === 0) {
+    throw createError('Plan de paiement non trouvé', 404);
+  }
+
+  const plan = planCheck.rows[0];
+  console.log('🗑️ Plan trouvé:', plan);
+
+  // Supprimer d'abord les chèques associés à ce paiement
+  const checksResult = await query(
+    'DELETE FROM checks WHERE sale_id = $1 AND user_id = $2 AND payment_plan_id = $3 RETURNING id',
+    [plan.sale_id, req.user!.userId, id]
+  );
+
+  console.log('🗑️ Chèques supprimés:', checksResult.rows.length);
+
+  // Ensuite supprimer le plan de paiement
   const result = await query(
     'DELETE FROM payment_plans WHERE id = $1 AND user_id = $2 RETURNING id',
     [id, req.user!.userId]
   );
 
-  if (result.rows.length === 0) {
-    throw createError('Plan de paiement non trouvé', 404);
-  }
+  console.log('🗑️ Plan de paiement supprimé:', result.rows.length > 0);
 
   const response: ApiResponse = {
     success: true,
-    message: 'Plan de paiement supprimé avec succès'
+    message: `Plan de paiement supprimé avec succès${checksResult.rows.length > 0 ? ` (${checksResult.rows.length} chèque(s) associé(s) également supprimé(s))` : ''}`
   };
 
   res.json(response);
