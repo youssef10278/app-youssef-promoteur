@@ -19,6 +19,7 @@ import { ExpenseAnalyticsComponent } from '@/components/expenses/ExpenseAnalytic
 import { ExpenseFilters as ExpenseFiltersComponent, ExpenseFiltersState } from '@/components/expenses/ExpenseFilters';
 import { ExpenseList } from '@/components/expenses/ExpenseList';
 import { ModifyExpenseModal } from '@/components/expenses/ModifyExpenseModal';
+import { ExpenseDetailsModal } from '@/components/expenses/ExpenseDetailsModal';
 import { ExpenseService } from '@/services/expenseService';
 import { ProjectSelector } from '@/components/common/ProjectSelector';
 import { Project, Expense, ExpenseFormData, CheckData, PAYMENT_MODES, ExpenseFilters } from '@/types/expense';
@@ -36,6 +37,8 @@ const Expenses = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedExpenseForPayments, setSelectedExpenseForPayments] = useState<Expense | null>(null);
   const { toast } = useToast();
 
   // États pour les filtres
@@ -401,6 +404,21 @@ const Expenses = () => {
     setSelectedExpense(null);
   };
 
+  // Handlers pour les paiements de dépenses
+  const handleViewPayments = (expense: Expense) => {
+    setSelectedExpenseForPayments(expense);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handlePaymentModalClose = () => {
+    setIsPaymentModalOpen(false);
+    setSelectedExpenseForPayments(null);
+  };
+
+  const handlePaymentSuccess = () => {
+    fetchExpenses(); // Recharger les dépenses pour mettre à jour les statuts de paiement
+  };
+
 
 
   if (authLoading || isLoading) {
@@ -734,6 +752,7 @@ const Expenses = () => {
             <ExpenseList
               expenses={filteredExpenses}
               isLoading={isLoadingExpenses}
+              onViewPayments={handleViewPayments}
               onEdit={handleEditExpense}
             />
           </div>
@@ -749,6 +768,18 @@ const Expenses = () => {
           onClose={handleModifyClose}
           onSuccess={handleModifySuccess}
         />
+      )}
+
+      {/* Modal de gestion des paiements */}
+      {selectedExpenseForPayments && (
+        <Dialog open={isPaymentModalOpen} onOpenChange={handlePaymentModalClose}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <ExpenseDetailsModal
+              expense={selectedExpenseForPayments}
+              onRefresh={handlePaymentSuccess}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

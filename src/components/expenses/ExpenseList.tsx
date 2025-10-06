@@ -2,13 +2,14 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Receipt, Eye, Edit, Trash2, Building2, Calendar, CreditCard } from 'lucide-react';
+import { Receipt, Eye, Edit, Trash2, Building2, Calendar, CreditCard, DollarSign } from 'lucide-react';
 import { Expense } from '@/types/expense';
 
 interface ExpenseListProps {
   expenses: Expense[];
   isLoading: boolean;
   onViewDetails?: (expense: Expense) => void;
+  onViewPayments?: (expense: Expense) => void;
   onEdit?: (expense: Expense) => void;
   onDelete?: (expense: Expense) => void;
 }
@@ -47,6 +48,19 @@ const getPaymentModeBadge = (mode: string | null | undefined) => {
   );
 };
 
+const getPaymentStatusBadge = (status?: string) => {
+  switch (status) {
+    case 'non_paye':
+      return <Badge variant="destructive">Non payé</Badge>;
+    case 'partiellement_paye':
+      return <Badge variant="default" className="bg-orange-100 text-orange-800">Partiellement payé</Badge>;
+    case 'paye':
+      return <Badge variant="default" className="bg-green-100 text-green-800">Payé</Badge>;
+    default:
+      return null;
+  }
+};
+
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('fr-FR', {
     day: '2-digit',
@@ -59,6 +73,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
   expenses,
   isLoading,
   onViewDetails,
+  onViewPayments,
   onEdit,
   onDelete
 }) => {
@@ -98,7 +113,10 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
                   <CardTitle className="text-base sm:text-lg">
                     {expense.nom}
                   </CardTitle>
-                  {getPaymentModeBadge(expense.mode_paiement)}
+                  <div className="flex flex-wrap gap-2">
+                    {getPaymentModeBadge(expense.mode_paiement)}
+                    {getPaymentStatusBadge(expense.statut_paiement)}
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-muted-foreground">
@@ -118,6 +136,17 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
               </div>
 
               <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+                {onViewPayments && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onViewPayments(expense)}
+                    className="w-full sm:w-auto bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                  >
+                    <DollarSign className="h-4 w-4 mr-1" />
+                    Paiements
+                  </Button>
+                )}
                 {onViewDetails && (
                   <Button
                     variant="outline"
@@ -158,28 +187,54 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
           <CardContent>
             {/* Résumé financier */}
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="text-center p-3 bg-green-50 rounded-lg">
                   <div className="text-xl sm:text-2xl font-bold text-green-600">
                     {formatAmount(expense.montant_declare)} DH
                   </div>
                   <div className="text-sm text-green-700">Montant principal</div>
                 </div>
-                
+
                 <div className="text-center p-3 bg-orange-50 rounded-lg">
                   <div className="text-xl sm:text-2xl font-bold text-orange-600">
                     {formatAmount(expense.montant_non_declare)} DH
                   </div>
                   <div className="text-sm text-orange-700">Autre montant</div>
                 </div>
-                
+
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
                   <div className="text-xl sm:text-2xl font-bold text-blue-600">
                     {formatAmount(expense.montant_total)} DH
                   </div>
                   <div className="text-sm text-blue-700">Montant total</div>
                 </div>
+
+                <div className="text-center p-3 bg-purple-50 rounded-lg">
+                  <div className="text-xl sm:text-2xl font-bold text-purple-600">
+                    {formatAmount(expense.montant_total_paye || 0)} DH
+                  </div>
+                  <div className="text-sm text-purple-700">Montant payé</div>
+                </div>
               </div>
+
+              {/* Barre de progression du paiement */}
+              {expense.montant_total > 0 && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Progression du paiement</span>
+                    <span>{Math.round(((expense.montant_total_paye || 0) / expense.montant_total) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(((expense.montant_total_paye || 0) / expense.montant_total) * 100, 100)}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-xs text-muted-foreground text-center">
+                    Restant: {formatAmount((expense.montant_restant || (expense.montant_total - (expense.montant_total_paye || 0))))} DH
+                  </div>
+                </div>
+              )}
 
               {/* Description */}
               {expense.description && (
