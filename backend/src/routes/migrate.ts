@@ -170,6 +170,64 @@ router.post('/fix-and-apply-expense-payment-migration', authenticateToken, async
   }
 });
 
+// Route d'urgence pour corriger uniquement la colonne ID
+router.post('/emergency-fix-id-column', authenticateToken, async (req, res) => {
+  try {
+    console.log('🚨 Correction d\'urgence de la colonne ID...');
+
+    // 1. Vérifier si la table existe
+    const tableExists = await query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+      AND table_name = 'expense_payment_plans'
+    `);
+
+    if (tableExists.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Table expense_payment_plans n\'existe pas. Utilisez la migration complète.'
+      });
+    }
+
+    // 2. Supprimer la contrainte PRIMARY KEY temporairement
+    await query(`ALTER TABLE expense_payment_plans DROP CONSTRAINT IF EXISTS expense_payment_plans_pkey`);
+    console.log('✅ Contrainte PRIMARY KEY supprimée');
+
+    // 3. Modifier la colonne ID pour utiliser gen_random_uuid()
+    await query(`ALTER TABLE expense_payment_plans ALTER COLUMN id SET DEFAULT gen_random_uuid()`);
+    console.log('✅ Default gen_random_uuid() ajouté à la colonne ID');
+
+    // 4. Mettre à jour les lignes existantes avec des UUID valides
+    await query(`UPDATE expense_payment_plans SET id = gen_random_uuid() WHERE id IS NULL`);
+    console.log('✅ Lignes avec ID NULL mises à jour');
+
+    // 5. Remettre la contrainte PRIMARY KEY
+    await query(`ALTER TABLE expense_payment_plans ADD CONSTRAINT expense_payment_plans_pkey PRIMARY KEY (id)`);
+    console.log('✅ Contrainte PRIMARY KEY restaurée');
+
+    console.log('🎉 Correction d\'urgence réussie !');
+
+    res.json({
+      success: true,
+      message: 'Correction d\'urgence de la colonne ID réussie !',
+      details: {
+        tableExists: true,
+        idColumnFixed: true,
+        primaryKeyRestored: true
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ Erreur lors de la correction d\'urgence:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la correction d\'urgence',
+      error: error.message
+    });
+  }
+});
+
 // Route temporaire pour appliquer la migration (ANCIENNE VERSION - REDIRIGE VERS LA NOUVELLE)
 router.post('/apply-expense-payment-migration', authenticateToken, async (req, res) => {
   console.log('🔄 Redirection vers la nouvelle route de migration corrigée...');
