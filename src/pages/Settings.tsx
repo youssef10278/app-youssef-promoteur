@@ -104,8 +104,8 @@ const Settings = () => {
       });
     } catch (error: any) {
       toast({
-        title: "Fonctionnalité non disponible",
-        description: "Le changement de mot de passe sera bientôt disponible",
+        title: "Erreur",
+        description: error.message || "Impossible de changer le mot de passe",
         variant: "destructive"
       });
     } finally {
