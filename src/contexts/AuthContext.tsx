@@ -16,6 +16,7 @@ interface AuthContextType {
   }) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (profileData: Partial<AuthUser>) => Promise<void>;
+  changePassword: (passwordData: { currentPassword: string; newPassword: string }) => Promise<void>;
   refreshUser: () => Promise<void>;
   error: string | null;
 }

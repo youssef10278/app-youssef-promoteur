@@ -23,7 +23,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 
 const Settings = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, updateProfile, changePassword } = useAuth();
   const { toast } = useToast();
   
   // États pour le changement de mot de passe
@@ -86,14 +86,10 @@ const Settings = () => {
     setIsChangingPassword(true);
 
     try {
-      // TODO: Implémenter l'endpoint de changement de mot de passe dans l'API backend
-      // const response = await apiClient.changePassword({
-      //   currentPassword: passwordData.currentPassword,
-      //   newPassword: passwordData.newPassword
-      // });
-
-      // Pour l'instant, simuler une erreur pour indiquer que la fonctionnalité n'est pas encore disponible
-      throw new Error('Fonctionnalité de changement de mot de passe en cours de développement');
+      await changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
 
       toast({
         title: "Succès",
@@ -122,14 +118,10 @@ const Settings = () => {
     setIsUpdatingProfile(true);
 
     try {
-      const response = await apiClient.updateProfile({
+      await updateProfile({
         nom: profileData.nom,
         telephone: profileData.telephone
       });
-
-      if (!response.success) {
-        throw new Error(response.error || 'Erreur lors de la mise à jour');
-      }
 
       toast({
         title: "Succès",

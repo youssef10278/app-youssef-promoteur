@@ -132,6 +132,13 @@ class ApiClient {
     });
   }
 
+  async changePassword(passwordData: { currentPassword: string; newPassword: string }) {
+    return this.request<any>('/auth/change-password', {
+      method: 'PUT',
+      body: JSON.stringify(passwordData),
+    });
+  }
+
   async verifyToken() {
     return this.request<{ valid: boolean; user: any }>('/auth/verify');
   }

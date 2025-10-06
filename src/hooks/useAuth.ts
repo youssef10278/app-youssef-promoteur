@@ -16,6 +16,7 @@ interface UseAuthReturn {
   }) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (profileData: Partial<AuthUser>) => Promise<void>;
+  changePassword: (passwordData: { currentPassword: string; newPassword: string }) => Promise<void>;
   refreshUser: () => Promise<void>;
   error: string | null;
 }
@@ -154,6 +155,26 @@ export const useAuth = (): UseAuthReturn => {
     }
   }, []);
 
+  // Changement de mot de passe
+  const changePassword = useCallback(async (passwordData: { currentPassword: string; newPassword: string }) => {
+    try {
+      setIsLoading(true);
+      clearError();
+
+      const response = await apiClient.changePassword(passwordData);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Erreur lors du changement de mot de passe');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du changement de mot de passe';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   // Rafraîchir les données utilisateur
   const refreshUser = useCallback(async () => {
     try {
@@ -191,6 +212,7 @@ export const useAuth = (): UseAuthReturn => {
     register,
     logout,
     updateProfile,
+    changePassword,
     refreshUser,
     error,
   };
