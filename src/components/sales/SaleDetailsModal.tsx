@@ -20,7 +20,8 @@ import {
   Clock,
   Printer,
   Settings,
-  Trash2
+  Trash2,
+  Edit
 } from 'lucide-react';
 import { Sale, PaymentPlan } from '@/types/sale-new';
 import { formatAmount } from '@/utils/payments';
@@ -31,6 +32,7 @@ import { useCompanySettings } from '@/hooks/useCompanySettings';
 import { useToast } from '@/hooks/use-toast';
 import { enrichPaymentPlansWithInitialAdvance, calculateUnifiedPaymentTotals } from '@/utils/paymentHistory';
 import { ModifyPaymentModal } from './ModifyPaymentModal';
+import { ModifySaleModal } from './ModifySaleModal';
 import { SalesServiceNew } from '@/services/salesServiceNew';
 import { apiClient } from '@/integrations/api/client';
 
@@ -54,6 +56,7 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
   const [editingPayment, setEditingPayment] = useState<PaymentPlan | null>(null);
   const [localPaymentPlans, setLocalPaymentPlans] = useState<PaymentPlan[]>(saleWithPayments.payment_plans || []);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+  const [showModifySale, setShowModifySale] = useState(false);
 
   // Fonction pour recharger les données de paiement
   const reloadPaymentData = async () => {
@@ -299,7 +302,19 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
                 <User className="h-5 w-5" />
                 <span>Informations Générales</span>
               </div>
-              {getStatusBadge(sale.statut)}
+              <div className="flex items-center space-x-2">
+                {getStatusBadge(sale.statut)}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowModifySale(true)}
+                  className="h-8 px-3 text-xs"
+                  disabled={sale.statut === 'annule'}
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Modifier
+                </Button>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -688,6 +703,27 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
             // Fermer le modal APRÈS le rechargement
             console.log('🚪 [SaleDetailsModal] Fermeture du modal de modification');
             setEditingPayment(null);
+          }}
+        />
+      )}
+
+      {/* Modal de modification de la vente */}
+      {showModifySale && (
+        <ModifySaleModal
+          sale={sale}
+          isOpen={showModifySale}
+          onClose={() => setShowModifySale(false)}
+          onSuccess={async () => {
+            console.log('🔄 [SaleDetailsModal] Vente modifiée avec succès');
+
+            // Rafraîchir la liste parent pour récupérer les nouvelles données
+            if (onRefresh) {
+              console.log('🔄 [SaleDetailsModal] Rafraîchissement de la liste parent...');
+              await onRefresh();
+            }
+
+            // Fermer le modal
+            setShowModifySale(false);
           }}
         />
       )}
