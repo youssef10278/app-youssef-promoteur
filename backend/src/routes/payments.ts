@@ -451,7 +451,7 @@ router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
   res.json(response);
 }));
 
-// Supprimer un plan de paiement
+// Supprimer un plan de paiement avec logique intelligente
 router.delete('/plans/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
@@ -471,40 +471,92 @@ router.delete('/plans/:id', asyncHandler(async (req: Request, res: Response) => 
   const plan = planCheck.rows[0];
   console.log('🗑️ Plan trouvé:', plan);
 
-  // Supprimer d'abord les chèques associés à ce paiement
-  // Supprimer les chèques de la table checks liés à cette vente et ce paiement
-  // Note: La table checks n'a pas payment_plan_id, donc on supprime par sale_id et description
-  const checksResult = await query(
-    `DELETE FROM checks WHERE sale_id = $1 AND user_id = $2
-     AND (description LIKE $3 OR description LIKE $4) RETURNING id`,
-    [
-      plan.sale_id,
-      req.user!.userId,
-      `%paiement #${plan.numero_echeance}%`,
-      `%Paiement #${plan.numero_echeance}%`
-    ]
+  // Vérifier combien de paiements existent pour cette vente
+  const allPaymentsResult = await query(
+    'SELECT id, numero_echeance FROM payment_plans WHERE sale_id = $1 AND user_id = $2 ORDER BY numero_echeance',
+    [plan.sale_id, req.user!.userId]
   );
 
-  const totalChecksDeleted = checksResult.rows.length;
-  console.log('🗑️ Chèques supprimés:', {
-    checks: checksResult.rows.length,
-    total: totalChecksDeleted
-  });
+  const allPayments = allPaymentsResult.rows;
+  console.log('🗑️ Nombre total de paiements pour cette vente:', allPayments.length);
 
-  // Ensuite supprimer le plan de paiement
-  const result = await query(
-    'DELETE FROM payment_plans WHERE id = $1 AND user_id = $2 RETURNING id',
-    [id, req.user!.userId]
-  );
+  if (allPayments.length === 1) {
+    // CAS 1: C'est le seul paiement → Supprimer toute la vente
+    console.log('🗑️ Suppression de toute la vente (seul paiement)');
 
-  console.log('🗑️ Plan de paiement supprimé:', result.rows.length > 0);
+    // Supprimer tous les chèques de la vente
+    const checksResult = await query(
+      'DELETE FROM checks WHERE sale_id = $1 AND user_id = $2 RETURNING id',
+      [plan.sale_id, req.user!.userId]
+    );
 
-  const response: ApiResponse = {
-    success: true,
-    message: `Plan de paiement supprimé avec succès${totalChecksDeleted > 0 ? ` (${totalChecksDeleted} chèque(s) associé(s) également supprimé(s))` : ''}`
-  };
+    // Supprimer la vente (cascade supprimera automatiquement les payment_plans)
+    const saleResult = await query(
+      'DELETE FROM sales WHERE id = $1 AND user_id = $2 RETURNING id',
+      [plan.sale_id, req.user!.userId]
+    );
 
-  res.json(response);
+    console.log('🗑️ Vente supprimée:', saleResult.rows.length > 0);
+    console.log('🗑️ Chèques supprimés:', checksResult.rows.length);
+
+    const response: ApiResponse = {
+      success: true,
+      message: `Vente supprimée avec succès (dernier paiement)${checksResult.rows.length > 0 ? ` - ${checksResult.rows.length} chèque(s) supprimé(s)` : ''}`,
+      data: { saleDeleted: true }
+    };
+
+    res.json(response);
+  } else {
+    // CAS 2: Il y a d'autres paiements → Supprimer ce paiement et renuméroter
+    console.log('🗑️ Suppression du paiement et renumérotation');
+
+    // Supprimer les chèques de ce paiement spécifique
+    const checksResult = await query(
+      `DELETE FROM checks WHERE sale_id = $1 AND user_id = $2
+       AND (description LIKE $3 OR description LIKE $4) RETURNING id`,
+      [
+        plan.sale_id,
+        req.user!.userId,
+        `%paiement #${plan.numero_echeance}%`,
+        `%Paiement #${plan.numero_echeance}%`
+      ]
+    );
+
+    // Supprimer le plan de paiement
+    const deleteResult = await query(
+      'DELETE FROM payment_plans WHERE id = $1 AND user_id = $2 RETURNING id',
+      [id, req.user!.userId]
+    );
+
+    // Renuméroter les paiements suivants
+    const paymentsToRenumber = allPayments.filter(p => p.numero_echeance > plan.numero_echeance);
+    console.log('🗑️ Paiements à renuméroter:', paymentsToRenumber.length);
+
+    for (const payment of paymentsToRenumber) {
+      const newNumber = payment.numero_echeance - 1;
+      await query(
+        'UPDATE payment_plans SET numero_echeance = $1 WHERE id = $2 AND user_id = $3',
+        [newNumber, payment.id, req.user!.userId]
+      );
+
+      // Mettre à jour les descriptions des chèques associés
+      await query(
+        `UPDATE checks SET description = REPLACE(description, 'paiement #${payment.numero_echeance}', 'paiement #${newNumber}')
+         WHERE sale_id = $1 AND user_id = $2 AND description LIKE '%paiement #${payment.numero_echeance}%'`,
+        [plan.sale_id, req.user!.userId]
+      );
+    }
+
+    console.log('🗑️ Paiement supprimé et renumérotation terminée');
+
+    const response: ApiResponse = {
+      success: true,
+      message: `Paiement supprimé avec succès${checksResult.rows.length > 0 ? ` (${checksResult.rows.length} chèque(s) supprimé(s))` : ''} - Paiements renumérotés`,
+      data: { saleDeleted: false, paymentsRenumbered: paymentsToRenumber.length }
+    };
+
+    res.json(response);
+  }
 }));
 
 // Modifier un plan de paiement existant

@@ -133,13 +133,28 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
       console.log('🗑️ [SaleDetailsModal] Réponse API:', response);
 
       if (response.success) {
-        toast({
-          title: "Paiement supprimé",
-          description: response.message || `Le paiement #${paymentNumber} a été supprimé avec succès`,
-        });
+        if (response.data?.saleDeleted) {
+          // La vente entière a été supprimée
+          toast({
+            title: "Vente supprimée",
+            description: response.message || "La vente a été supprimée car c'était le dernier paiement",
+          });
 
-        // Recharger les données après suppression
-        await reloadPaymentData();
+          // Fermer le modal et rafraîchir la liste parent
+          onClose();
+          if (onRefresh) {
+            await onRefresh();
+          }
+        } else {
+          // Seul le paiement a été supprimé
+          toast({
+            title: "Paiement supprimé",
+            description: response.message || `Le paiement #${paymentNumber} a été supprimé avec succès`,
+          });
+
+          // Recharger les données après suppression
+          await reloadPaymentData();
+        }
       } else {
         throw new Error(response.error || 'Erreur lors de la suppression');
       }
