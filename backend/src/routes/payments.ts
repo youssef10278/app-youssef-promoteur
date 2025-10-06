@@ -472,12 +472,31 @@ router.delete('/plans/:id', asyncHandler(async (req: Request, res: Response) => 
   console.log('🗑️ Plan trouvé:', plan);
 
   // Supprimer d'abord les chèques associés à ce paiement
-  const checksResult = await query(
-    'DELETE FROM checks WHERE sale_id = $1 AND user_id = $2 AND payment_plan_id = $3 RETURNING id',
-    [plan.sale_id, req.user!.userId, id]
+  // 1. Supprimer les chèques de la table payment_checks (nouveau système)
+  const paymentChecksResult = await query(
+    'DELETE FROM payment_checks WHERE payment_plan_id = $1 AND user_id = $2 RETURNING id',
+    [id, req.user!.userId]
   );
 
-  console.log('🗑️ Chèques supprimés:', checksResult.rows.length);
+  // 2. Supprimer les chèques de la table checks (ancien système) liés à cette vente
+  // Note: La table checks n'a pas payment_plan_id, donc on supprime par sale_id et description
+  const checksResult = await query(
+    `DELETE FROM checks WHERE sale_id = $1 AND user_id = $2
+     AND (description LIKE $3 OR description LIKE $4) RETURNING id`,
+    [
+      plan.sale_id,
+      req.user!.userId,
+      `%paiement #${plan.numero_echeance}%`,
+      `%Paiement #${plan.numero_echeance}%`
+    ]
+  );
+
+  const totalChecksDeleted = paymentChecksResult.rows.length + checksResult.rows.length;
+  console.log('🗑️ Chèques supprimés:', {
+    payment_checks: paymentChecksResult.rows.length,
+    checks: checksResult.rows.length,
+    total: totalChecksDeleted
+  });
 
   // Ensuite supprimer le plan de paiement
   const result = await query(
@@ -489,7 +508,7 @@ router.delete('/plans/:id', asyncHandler(async (req: Request, res: Response) => 
 
   const response: ApiResponse = {
     success: true,
-    message: `Plan de paiement supprimé avec succès${checksResult.rows.length > 0 ? ` (${checksResult.rows.length} chèque(s) associé(s) également supprimé(s))` : ''}`
+    message: `Plan de paiement supprimé avec succès${totalChecksDeleted > 0 ? ` (${totalChecksDeleted} chèque(s) associé(s) également supprimé(s))` : ''}`
   };
 
   res.json(response);
