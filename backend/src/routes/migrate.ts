@@ -208,7 +208,7 @@ router.post('/emergency-fix-id-column', authenticateToken, async (req, res) => {
 
     console.log('🎉 Correction d\'urgence réussie !');
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Correction d\'urgence de la colonne ID réussie !',
       details: {
@@ -220,7 +220,7 @@ router.post('/emergency-fix-id-column', authenticateToken, async (req, res) => {
 
   } catch (error: any) {
     console.error('❌ Erreur lors de la correction d\'urgence:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erreur lors de la correction d\'urgence',
       error: error.message
@@ -232,7 +232,7 @@ router.post('/emergency-fix-id-column', authenticateToken, async (req, res) => {
 router.post('/apply-expense-payment-migration', authenticateToken, async (req, res) => {
   console.log('🔄 Redirection vers la nouvelle route de migration corrigée...');
 
-  res.json({
+  return res.json({
     success: false,
     message: 'Cette route est obsolète. Utilisez /api/migrate/fix-and-apply-expense-payment-migration',
     redirect: '/api/migrate/fix-and-apply-expense-payment-migration'
