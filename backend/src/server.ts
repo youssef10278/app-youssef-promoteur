@@ -18,6 +18,7 @@ import expenseRoutes from './routes/expenses';
 import checkRoutes from './routes/checks';
 import paymentRoutes from './routes/payments';
 import expensePaymentRoutes from './routes/expensePayments';
+import migrateRoutes from './routes/migrate';
 import companySettingsRoutes from './routes/companySettings';
 
 dotenv.config();
@@ -168,6 +169,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/checks', checkRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/expense-payments', expensePaymentRoutes);
+app.use('/api/migrate', migrateRoutes);
 app.use('/api/company-settings', companySettingsRoutes);
 
 // Route de base
