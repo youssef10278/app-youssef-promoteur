@@ -19,7 +19,8 @@ import {
   TrendingUp,
   Clock,
   Printer,
-  Settings
+  Settings,
+  Trash2
 } from 'lucide-react';
 import { Sale, PaymentPlan } from '@/types/sale-new';
 import { formatAmount } from '@/utils/payments';
@@ -31,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { enrichPaymentPlansWithInitialAdvance, calculateUnifiedPaymentTotals } from '@/utils/paymentHistory';
 import { ModifyPaymentModal } from './ModifyPaymentModal';
 import { SalesServiceNew } from '@/services/salesServiceNew';
+import { apiClient } from '@/integrations/api/client';
 
 interface SaleDetailsModalProps {
   sale: Sale;
@@ -51,6 +53,7 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
   const [showCompanySettings, setShowCompanySettings] = useState(false);
   const [editingPayment, setEditingPayment] = useState<PaymentPlan | null>(null);
   const [localPaymentPlans, setLocalPaymentPlans] = useState<PaymentPlan[]>(saleWithPayments.payment_plans || []);
+  const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
 
   // Fonction pour recharger les données de paiement
   const reloadPaymentData = async () => {
@@ -106,6 +109,41 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
         description: "Impossible de recharger les données de paiement. Veuillez rafraîchir la page.",
         variant: "destructive",
       });
+    }
+  };
+
+  // Fonction pour supprimer un paiement
+  const handleDeletePayment = async (paymentId: string, paymentNumber: number) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer le paiement #${paymentNumber} ? Cette action est irréversible.`)) {
+      return;
+    }
+
+    setDeletingPaymentId(paymentId);
+    try {
+      console.log('🗑️ [SaleDetailsModal] Suppression du paiement:', paymentId);
+
+      const response = await apiClient.deletePaymentPlan(paymentId);
+
+      if (response.success) {
+        toast({
+          title: "Paiement supprimé",
+          description: `Le paiement #${paymentNumber} a été supprimé avec succès`,
+        });
+
+        // Recharger les données après suppression
+        await reloadPaymentData();
+      } else {
+        throw new Error(response.error || 'Erreur lors de la suppression');
+      }
+    } catch (error: any) {
+      console.error('❌ [SaleDetailsModal] Erreur lors de la suppression du paiement:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de supprimer le paiement",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingPaymentId(null);
     }
   };
 
@@ -456,17 +494,32 @@ export function SaleDetailsModal({ sale, onClose, onAddPayment, onRefresh }: Sal
                           </div>
                           <div className="flex items-center justify-end space-x-2">
                             {getPaymentStatusBadge(plan.statut)}
-                            {/* Bouton Modifier - Seulement pour les paiements réels */}
+                            {/* Boutons d'action - Seulement pour les paiements réels */}
                             {!plan.id.startsWith('virtual-') && plan.montant_paye > 0 && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setEditingPayment(plan)}
-                                className="h-6 px-2 text-xs"
-                                disabled={sale.statut === 'annule'}
-                              >
-                                Modifier
-                              </Button>
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setEditingPayment(plan)}
+                                  className="h-6 px-2 text-xs"
+                                  disabled={sale.statut === 'annule'}
+                                >
+                                  Modifier
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeletePayment(plan.id, plan.numero_echeance)}
+                                  className="h-6 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  disabled={sale.statut === 'annule' || deletingPaymentId === plan.id}
+                                >
+                                  {deletingPaymentId === plan.id ? (
+                                    <div className="animate-spin h-3 w-3 border border-current border-t-transparent rounded-full" />
+                                  ) : (
+                                    <Trash2 className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              </>
                             )}
                           </div>
                         </div>
