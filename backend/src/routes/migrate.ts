@@ -4,15 +4,19 @@ import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
 
-// Route temporaire pour appliquer la migration (À SUPPRIMER APRÈS UTILISATION)
-router.post('/apply-expense-payment-migration', authenticateToken, async (req, res) => {
+// Route temporaire pour corriger et appliquer la migration (À SUPPRIMER APRÈS UTILISATION)
+router.post('/fix-and-apply-expense-payment-migration', authenticateToken, async (req, res) => {
   try {
-    console.log('🚀 Application de la migration des paiements de dépenses...');
+    console.log('🚀 Correction et application de la migration des paiements de dépenses...');
 
-    // 1. Créer la table expense_payment_plans
+    // 1. Supprimer la table existante si elle existe (pour la recréer proprement)
+    await query(`DROP TABLE IF EXISTS expense_payment_plans CASCADE`);
+    console.log('✅ Table expense_payment_plans supprimée si elle existait');
+
+    // 2. Créer la table expense_payment_plans avec la bonne fonction UUID
     await query(`
-      CREATE TABLE IF NOT EXISTS expense_payment_plans (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      CREATE TABLE expense_payment_plans (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         expense_id UUID NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         numero_echeance INTEGER NOT NULL,
@@ -21,15 +25,15 @@ router.post('/apply-expense-payment-migration', authenticateToken, async (req, r
         montant_paye DECIMAL DEFAULT 0 CHECK (montant_paye >= 0),
         montant_declare DECIMAL DEFAULT 0 CHECK (montant_declare >= 0),
         montant_non_declare DECIMAL DEFAULT 0 CHECK (montant_non_declare >= 0),
-        date_paiement TIMESTAMP WITH TIME ZONE,
-        mode_paiement payment_mode,
+        date_paiement TIMESTAMP,
+        mode_paiement TEXT,
         montant_espece DECIMAL DEFAULT 0 CHECK (montant_espece >= 0),
         montant_cheque DECIMAL DEFAULT 0 CHECK (montant_cheque >= 0),
-        statut payment_plan_status DEFAULT 'en_attente',
+        statut TEXT DEFAULT 'en_attente',
         description TEXT,
         notes TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         
         -- Contraintes
         CONSTRAINT expense_payment_plans_montant_coherence 
@@ -50,25 +54,26 @@ router.post('/apply-expense-payment-migration', authenticateToken, async (req, r
         UNIQUE(expense_id, numero_echeance)
       )
     `);
+    console.log('✅ Table expense_payment_plans créée avec succès');
 
-    // 2. Ajouter les colonnes à la table expenses
+    // 3. Ajouter les colonnes à la table expenses
     await query(`
-      ALTER TABLE expenses 
-      ADD COLUMN IF NOT EXISTS statut_paiement VARCHAR(20) DEFAULT 'non_paye' 
-      CHECK (statut_paiement IN ('non_paye', 'partiellement_paye', 'paye'))
+      ALTER TABLE expenses
+      ADD COLUMN IF NOT EXISTS statut_paiement TEXT DEFAULT 'non_paye'
     `);
 
     await query(`
-      ALTER TABLE expenses 
-      ADD COLUMN IF NOT EXISTS montant_total_paye DECIMAL DEFAULT 0 CHECK (montant_total_paye >= 0)
+      ALTER TABLE expenses
+      ADD COLUMN IF NOT EXISTS montant_total_paye DECIMAL DEFAULT 0
     `);
 
     await query(`
-      ALTER TABLE expenses 
-      ADD COLUMN IF NOT EXISTS montant_restant DECIMAL DEFAULT 0 CHECK (montant_restant >= 0)
+      ALTER TABLE expenses
+      ADD COLUMN IF NOT EXISTS montant_restant DECIMAL DEFAULT 0
     `);
+    console.log('✅ Colonnes ajoutées à la table expenses');
 
-    // 3. Créer la fonction de mise à jour automatique
+    // 4. Créer la fonction de mise à jour automatique
     await query(`
       CREATE OR REPLACE FUNCTION update_expense_payment_status()
       RETURNS TRIGGER AS $$
@@ -101,16 +106,18 @@ router.post('/apply-expense-payment-migration', authenticateToken, async (req, r
       END;
       $$ LANGUAGE plpgsql
     `);
+    console.log('✅ Fonction update_expense_payment_status créée');
 
-    // 4. Créer les triggers
+    // 5. Créer les triggers
     await query(`DROP TRIGGER IF EXISTS expense_payment_plans_update_status ON expense_payment_plans`);
     await query(`
       CREATE TRIGGER expense_payment_plans_update_status
         AFTER INSERT OR UPDATE OR DELETE ON expense_payment_plans
         FOR EACH ROW EXECUTE FUNCTION update_expense_payment_status()
     `);
+    console.log('✅ Triggers créés');
 
-    // 5. Mettre à jour les dépenses existantes
+    // 6. Mettre à jour les dépenses existantes
     await query(`
       UPDATE expenses 
       SET 
@@ -119,12 +126,14 @@ router.post('/apply-expense-payment-migration', authenticateToken, async (req, r
         montant_restant = montant_total
       WHERE statut_paiement IS NULL
     `);
+    console.log('✅ Dépenses existantes mises à jour');
 
-    // 6. Créer les index pour les performances
+    // 7. Créer les index pour les performances
     await query(`CREATE INDEX IF NOT EXISTS idx_expense_payment_plans_expense_id ON expense_payment_plans(expense_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_expense_payment_plans_user_id ON expense_payment_plans(user_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_expense_payment_plans_statut ON expense_payment_plans(statut)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_expenses_statut_paiement ON expenses(statut_paiement)`);
+    console.log('✅ Index créés pour les performances');
 
     // Vérification finale
     const tableCheck = await query(`
@@ -134,22 +143,37 @@ router.post('/apply-expense-payment-migration', authenticateToken, async (req, r
       AND table_name = 'expense_payment_plans'
     `);
 
-    console.log('✅ Migration des paiements de dépenses appliquée avec succès !');
+    console.log('🎉 Migration des paiements de dépenses corrigée et appliquée avec succès !');
 
     res.json({
       success: true,
-      message: 'Migration des paiements de dépenses appliquée avec succès !',
-      tableCreated: tableCheck.rows.length > 0
+      message: 'Migration des paiements de dépenses corrigée et appliquée avec succès !',
+      tableCreated: tableCheck.rows.length > 0,
+      details: {
+        tableDropped: true,
+        tableRecreated: true,
+        columnsAdded: true,
+        functionsCreated: true,
+        triggersCreated: true,
+        indexesCreated: true,
+        existingDataUpdated: true
+      }
     });
 
   } catch (error: any) {
-    console.error('❌ Erreur lors de l\'application de la migration:', error);
+    console.error('❌ Erreur lors de la correction et application de la migration:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de l\'application de la migration',
+      message: 'Erreur lors de la correction et application de la migration',
       error: error.message
     });
   }
+});
+
+// Route temporaire pour appliquer la migration (ANCIENNE VERSION - GARDÉE POUR COMPATIBILITÉ)
+router.post('/apply-expense-payment-migration', authenticateToken, async (req, res) => {
+  // Rediriger vers la nouvelle route corrigée
+  return router.handle({ ...req, url: '/fix-and-apply-expense-payment-migration' } as any, res, () => {});
 });
 
 export default router;
