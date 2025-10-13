@@ -559,10 +559,10 @@ router.post('/create-simple', asyncHandler(async (req: Request, res: Response) =
   const result = await query(
     `INSERT INTO expenses (
        project_id, user_id, nom, description, statut,
-       montant_declare, montant_non_declare, montant_total,
+       montant_declare, montant_non_declare,
        methode_paiement
      )
-     VALUES ($1, $2, $3, $4, 'actif', 0, 0, 0, 'espece')
+     VALUES ($1, $2, $3, $4, 'actif', 0, 0, 'espece')
      RETURNING *`,
     [
       validatedData.project_id,
