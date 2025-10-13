@@ -21,6 +21,7 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+// Force rebuild for Railway deployment
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

@@ -1,10 +1,18 @@
 // Client API pour remplacer Supabase
 import { ApiResponse, PaginatedResponse } from './types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+// Normaliser l'URL de base pour éviter les doublons /api/api
+const normalizeBaseUrl = (url: string): string => {
+  // Si l'URL se termine par /api, on l'enlève car on l'ajoute dans les endpoints
+  return url.replace(/\/api\/?$/, '');
+};
+
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = normalizeBaseUrl(rawBaseUrl) + '/api';
 
 // Debug temporaire - à supprimer après résolution
-console.log('🔍 DEBUG API_BASE_URL:', API_BASE_URL);
+console.log('🔍 DEBUG RAW URL:', rawBaseUrl);
+console.log('🔍 DEBUG NORMALIZED API_BASE_URL:', API_BASE_URL);
 console.log('🔍 DEBUG VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
 
 class ApiClient {
