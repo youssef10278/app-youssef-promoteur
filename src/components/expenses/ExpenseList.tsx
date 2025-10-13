@@ -130,7 +130,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
                   </div>
                   <div className="flex items-center space-x-2">
                     <CreditCard className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">Total: {formatAmount(expense.montant_total)} DH</span>
+                    <span className="truncate">Total: {formatAmount(expense.total_paye_calcule || 0)} DH</span>
                   </div>
                 </div>
               </div>
@@ -190,48 +190,48 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="text-center p-3 bg-green-50 rounded-lg">
                   <div className="text-xl sm:text-2xl font-bold text-green-600">
-                    {formatAmount(expense.montant_declare)} DH
+                    {formatAmount(expense.total_declare_calcule || 0)} DH
                   </div>
                   <div className="text-sm text-green-700">Montant principal</div>
                 </div>
 
                 <div className="text-center p-3 bg-orange-50 rounded-lg">
                   <div className="text-xl sm:text-2xl font-bold text-orange-600">
-                    {formatAmount(expense.montant_non_declare)} DH
+                    {formatAmount(expense.total_non_declare_calcule || 0)} DH
                   </div>
                   <div className="text-sm text-orange-700">Autre montant</div>
                 </div>
 
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
                   <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                    {formatAmount(expense.montant_total)} DH
+                    {formatAmount((expense.total_declare_calcule || 0) + (expense.total_non_declare_calcule || 0))} DH
                   </div>
                   <div className="text-sm text-blue-700">Montant total</div>
                 </div>
 
                 <div className="text-center p-3 bg-purple-50 rounded-lg">
                   <div className="text-xl sm:text-2xl font-bold text-purple-600">
-                    {formatAmount(expense.montant_total_paye || 0)} DH
+                    {formatAmount(expense.total_paye_calcule || 0)} DH
                   </div>
                   <div className="text-sm text-purple-700">Montant payé</div>
                 </div>
               </div>
 
               {/* Barre de progression du paiement */}
-              {expense.montant_total > 0 && (
+              {((expense.total_declare_calcule || 0) + (expense.total_non_declare_calcule || 0)) > 0 && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Progression du paiement</span>
-                    <span>{Math.round(((Number(expense.montant_total_paye) || 0) / expense.montant_total) * 100)}%</span>
+                    <span>{Math.round(((expense.total_paye_calcule || 0) / ((expense.total_declare_calcule || 0) + (expense.total_non_declare_calcule || 0))) * 100)}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(((Number(expense.montant_total_paye) || 0) / expense.montant_total) * 100, 100)}%` }}
+                      style={{ width: `${Math.min(((expense.total_paye_calcule || 0) / ((expense.total_declare_calcule || 0) + (expense.total_non_declare_calcule || 0))) * 100, 100)}%` }}
                     ></div>
                   </div>
                   <div className="text-xs text-muted-foreground text-center">
-                    Restant: {formatAmount((Number(expense.montant_restant) || (expense.montant_total - (Number(expense.montant_total_paye) || 0))))} DH
+                    Restant: {formatAmount(((expense.total_declare_calcule || 0) + (expense.total_non_declare_calcule || 0)) - (expense.total_paye_calcule || 0))} DH
                   </div>
                 </div>
               )}
