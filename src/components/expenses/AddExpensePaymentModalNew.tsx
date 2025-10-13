@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,18 +20,19 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  DollarSign, 
-  Calendar, 
+import {
+  DollarSign,
+  Calendar,
   CreditCard,
   Banknote,
   Plus,
   Save,
   X,
   AlertTriangle,
-  Receipt
+  Receipt,
+  Edit
 } from 'lucide-react';
-import { ExpensePaymentFormData, PaymentMode, PAYMENT_MODES } from '@/types/expense';
+import { ExpensePaymentFormData, PaymentMode, PAYMENT_MODES, ExpensePayment } from '@/types/expense';
 import { formatAmount } from '@/utils/payments';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/integrations/api/client';
@@ -46,6 +47,7 @@ interface AddExpensePaymentModalNewProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editingPayment?: ExpensePayment | null;
 }
 
 const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
@@ -53,28 +55,59 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  editingPayment = null,
 }) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  const [formData, setFormData] = useState<ExpensePaymentFormData>({
-    montant_paye: 0,
-    montant_declare: 0,
-    montant_non_declare: 0,
-    date_paiement: new Date().toISOString().split('T')[0],
-    mode_paiement: 'espece',
-    description: '',
-    reference_paiement: '',
-    cheque_data: {
-      numero_cheque: '',
-      nom_beneficiaire: '',
-      nom_emetteur: '',
-      date_emission: new Date().toISOString().split('T')[0],
-      date_encaissement: new Date().toISOString().split('T')[0],
-      banque_emettrice: '',
-    },
-  });
+  const getInitialFormData = (): ExpensePaymentFormData => {
+    if (editingPayment) {
+      return {
+        montant_paye: editingPayment.montant_paye,
+        montant_declare: editingPayment.montant_declare,
+        montant_non_declare: editingPayment.montant_non_declare,
+        date_paiement: editingPayment.date_paiement.split('T')[0],
+        mode_paiement: editingPayment.mode_paiement,
+        description: editingPayment.description || '',
+        reference_paiement: editingPayment.reference_paiement || '',
+        cheque_data: {
+          numero_cheque: editingPayment.reference_paiement || '',
+          nom_beneficiaire: '',
+          nom_emetteur: '',
+          date_emission: editingPayment.date_paiement.split('T')[0],
+          date_encaissement: editingPayment.date_paiement.split('T')[0],
+          banque_emettrice: '',
+        },
+      };
+    }
+
+    return {
+      montant_paye: 0,
+      montant_declare: 0,
+      montant_non_declare: 0,
+      date_paiement: new Date().toISOString().split('T')[0],
+      mode_paiement: 'espece',
+      description: '',
+      reference_paiement: '',
+      cheque_data: {
+        numero_cheque: '',
+        nom_beneficiaire: '',
+        nom_emetteur: '',
+        date_emission: new Date().toISOString().split('T')[0],
+        date_encaissement: new Date().toISOString().split('T')[0],
+        banque_emettrice: '',
+      },
+    };
+  };
+
+  const [formData, setFormData] = useState<ExpensePaymentFormData>(getInitialFormData());
+
+  // Réinitialiser le formulaire quand le paiement à modifier change
+  useEffect(() => {
+    setFormData(getInitialFormData());
+    setValidationErrors([]);
+  }, [editingPayment]);
 
   const resetForm = () => {
     setFormData({
@@ -179,25 +212,33 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
     setIsLoading(true);
 
     try {
-      const response = await apiClient.post(`/expenses/${expense.id}/payments`, formData);
+      let response;
+
+      if (editingPayment) {
+        // Mode modification
+        response = await apiClient.put(`/expenses/payments/${editingPayment.id}`, formData);
+      } else {
+        // Mode ajout
+        response = await apiClient.post(`/expenses/${expense.id}/payments`, formData);
+      }
 
       if (response.success) {
         toast({
-          title: "Paiement ajouté",
-          description: `Paiement de ${formatAmount(formData.montant_paye)} ajouté avec succès.`,
+          title: editingPayment ? "Paiement modifié" : "Paiement ajouté",
+          description: `Paiement de ${formatAmount(formData.montant_paye)} ${editingPayment ? 'modifié' : 'ajouté'} avec succès.`,
         });
 
         resetForm();
         onSuccess();
         onClose();
       } else {
-        throw new Error(response.error || 'Erreur lors de l\'ajout du paiement');
+        throw new Error(response.error || `Erreur lors de ${editingPayment ? 'la modification' : 'l\'ajout'} du paiement`);
       }
     } catch (error) {
-      console.error('Erreur lors de l\'ajout du paiement:', error);
-      
-      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de l\'ajout du paiement';
-      
+      console.error(`Erreur lors de ${editingPayment ? 'la modification' : 'l\'ajout'} du paiement:`, error);
+
+      const errorMessage = error instanceof Error ? error.message : `Erreur lors de ${editingPayment ? 'la modification' : 'l\'ajout'} du paiement`;
+
       toast({
         title: "Erreur",
         description: errorMessage,
@@ -234,11 +275,23 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <Plus className="h-5 w-5 text-primary" />
-            <span>Ajouter un Paiement</span>
+            {editingPayment ? (
+              <>
+                <Edit className="h-5 w-5 text-primary" />
+                <span>Modifier le Paiement</span>
+              </>
+            ) : (
+              <>
+                <Plus className="h-5 w-5 text-primary" />
+                <span>Ajouter un Paiement</span>
+              </>
+            )}
           </DialogTitle>
           <DialogDescription>
-            Ajouter un nouveau paiement pour la dépense "{expense.nom}"
+            {editingPayment
+              ? `Modifier le paiement de ${formatAmount(editingPayment.montant_paye)} pour la dépense "${expense.nom}"`
+              : `Ajouter un nouveau paiement pour la dépense "${expense.nom}"`
+            }
           </DialogDescription>
         </DialogHeader>
 

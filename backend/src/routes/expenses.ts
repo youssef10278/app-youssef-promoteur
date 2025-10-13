@@ -785,6 +785,111 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
   res.json(response);
 }));
 
+// Modifier un paiement de dépense
+router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Response) => {
+  const { paymentId } = req.params;
+  const validatedData = validate(createExpensePaymentSchema, req.body);
+
+  // Vérifier que le paiement appartient à l'utilisateur
+  const paymentCheck = await query(
+    `SELECT ep.*, e.statut as expense_statut, e.nom as expense_nom
+     FROM expense_payments ep
+     JOIN expenses e ON ep.expense_id = e.id
+     WHERE ep.id = $1 AND ep.user_id = $2`,
+    [paymentId, req.user!.userId]
+  );
+
+  if (paymentCheck.rows.length === 0) {
+    throw createError('Paiement non trouvé', 404);
+  }
+
+  const payment = paymentCheck.rows[0];
+
+  // Vérifier que la dépense n'est pas annulée
+  if (payment.expense_statut === 'annule') {
+    throw createError('Impossible de modifier un paiement d\'une dépense annulée', 400);
+  }
+
+  // Mettre à jour le paiement
+  const result = await query(
+    `UPDATE expense_payments
+     SET montant_paye = $1, montant_declare = $2, montant_non_declare = $3,
+         date_paiement = $4, mode_paiement = $5, description = $6,
+         reference_paiement = $7, updated_at = CURRENT_TIMESTAMP
+     WHERE id = $8
+     RETURNING *`,
+    [
+      validatedData.montant_paye,
+      validatedData.montant_declare,
+      validatedData.montant_non_declare,
+      validatedData.date_paiement,
+      validatedData.mode_paiement,
+      validatedData.description || '',
+      validatedData.reference_paiement || null,
+      paymentId
+    ]
+  );
+
+  // Si c'est un paiement par chèque, gérer le chèque associé
+  if (validatedData.mode_paiement === 'cheque' && validatedData.cheque_data) {
+    // Vérifier s'il y a déjà un chèque associé à ce paiement
+    const existingCheque = await query(
+      'SELECT id FROM checks WHERE expense_id = $1 AND numero_cheque = $2',
+      [payment.expense_id, payment.reference_paiement]
+    );
+
+    if (existingCheque.rows.length > 0) {
+      // Mettre à jour le chèque existant
+      await query(
+        `UPDATE checks
+         SET montant = $1, numero_cheque = $2, nom_beneficiaire = $3,
+             nom_emetteur = $4, date_emission = $5, date_encaissement = $6,
+             description = $7, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $8`,
+        [
+          validatedData.montant_paye,
+          validatedData.cheque_data.numero_cheque,
+          validatedData.cheque_data.nom_beneficiaire,
+          validatedData.cheque_data.nom_emetteur,
+          validatedData.cheque_data.date_emission,
+          validatedData.cheque_data.date_encaissement,
+          `Paiement dépense: ${payment.expense_nom} - ${validatedData.description || ''}`,
+          existingCheque.rows[0].id
+        ]
+      );
+    } else {
+      // Créer un nouveau chèque
+      await query(
+        `INSERT INTO checks (
+           user_id, expense_id, type_cheque, montant, numero_cheque,
+           nom_beneficiaire, nom_emetteur, date_emission, date_encaissement,
+           statut, description
+         )
+         VALUES ($1, $2, 'donne', $3, $4, $5, $6, $7, $8, 'emis', $9)`,
+        [
+          req.user!.userId,
+          payment.expense_id,
+          validatedData.montant_paye,
+          validatedData.cheque_data.numero_cheque,
+          validatedData.cheque_data.nom_beneficiaire,
+          validatedData.cheque_data.nom_emetteur,
+          validatedData.cheque_data.date_emission,
+          validatedData.cheque_data.date_encaissement,
+          `Paiement dépense: ${payment.expense_nom} - ${validatedData.description || ''}`
+        ]
+      );
+    }
+  }
+
+  const response: ApiResponse = {
+    success: true,
+    data: result.rows[0],
+    message: 'Paiement modifié avec succès'
+  };
+
+  res.json(response);
+}));
+
 // Supprimer un paiement de dépense
 router.delete('/payments/:paymentId', asyncHandler(async (req: Request, res: Response) => {
   const { paymentId } = req.params;

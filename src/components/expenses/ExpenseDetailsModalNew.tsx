@@ -48,6 +48,7 @@ const ExpenseDetailsModalNew: React.FC<ExpenseDetailsModalNewProps> = ({
   const [expense, setExpense] = useState<ExpenseWithPayments>(initialExpense);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddPayment, setShowAddPayment] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<ExpensePayment | null>(null);
 
   // Mettre à jour l'expense quand les props changent
   useEffect(() => {
@@ -76,6 +77,13 @@ const ExpenseDetailsModalNew: React.FC<ExpenseDetailsModalNewProps> = ({
   const handleAddPaymentSuccess = () => {
     loadExpenseDetails();
     onRefresh();
+    setShowAddPayment(false);
+    setEditingPayment(null);
+  };
+
+  const handleEditPayment = (payment: ExpensePayment) => {
+    setEditingPayment(payment);
+    setShowAddPayment(true);
   };
 
   const handleDeletePayment = async (paymentId: string) => {
@@ -289,8 +297,18 @@ const ExpenseDetailsModalNew: React.FC<ExpenseDetailsModalNewProps> = ({
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => handleEditPayment(payment)}
+                              disabled={expense.statut === 'annule'}
+                              title="Modifier le paiement"
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleDeletePayment(payment.id)}
                               disabled={expense.statut === 'annule'}
+                              title="Supprimer le paiement"
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -306,12 +324,16 @@ const ExpenseDetailsModalNew: React.FC<ExpenseDetailsModalNewProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Modal d'ajout de paiement */}
+      {/* Modal d'ajout/modification de paiement */}
       <AddExpensePaymentModalNew
         expense={expense}
         isOpen={showAddPayment}
-        onClose={() => setShowAddPayment(false)}
+        onClose={() => {
+          setShowAddPayment(false);
+          setEditingPayment(null);
+        }}
         onSuccess={handleAddPaymentSuccess}
+        editingPayment={editingPayment}
       />
     </>
   );
