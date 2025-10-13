@@ -22,7 +22,7 @@ import { ModifyExpenseModal } from '@/components/expenses/ModifyExpenseModal';
 import { ExpenseDetailsModal } from '@/components/expenses/ExpenseDetailsModal';
 import CreateSimpleExpenseModal from '@/components/expenses/CreateSimpleExpenseModal';
 import ExpenseDetailsModalNew from '@/components/expenses/ExpenseDetailsModalNew';
-import { ExpenseService } from '@/services/expenseService';
+
 import { useExpensesNew } from '@/hooks/useExpensesNew';
 import { ProjectSelector } from '@/components/common/ProjectSelector';
 import { Project, Expense, ExpenseWithPayments, ExpenseFormData, CheckData, PAYMENT_MODES, ExpenseFilters } from '@/types/expense';
@@ -46,7 +46,8 @@ const Expenses = () => {
     isLoading: isLoadingExpenses,
     createSimpleExpense,
     refreshExpenses,
-    loadExpenses
+    loadExpenses,
+    getExpenseWithPayments
   } = useExpensesNew(selectedProject !== 'all' ? selectedProject : undefined);
 
   // États pour les filtres
@@ -154,7 +155,7 @@ const Expenses = () => {
   const handleViewPayments = async (expense: Expense) => {
     try {
       // Charger les détails complets de la dépense avec ses paiements
-      const expenseWithPayments = await ExpenseService.getExpenseWithPayments(expense.id);
+      const expenseWithPayments = await getExpenseWithPayments(expense.id);
       setSelectedExpenseForPayments(expenseWithPayments);
       setIsPaymentModalOpen(true);
     } catch (error) {
