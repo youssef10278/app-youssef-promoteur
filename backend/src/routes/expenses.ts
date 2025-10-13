@@ -601,17 +601,63 @@ router.get('/:id/with-payments', asyncHandler(async (req: Request, res: Response
     [id]
   );
 
-  // Récupérer les paiements
+  // Récupérer les paiements avec leurs chèques associés
   const paymentsResult = await query(
-    `SELECT * FROM expense_payments
-     WHERE expense_id = $1
-     ORDER BY date_paiement DESC, created_at DESC`,
+    `SELECT
+       ep.*,
+       c.id as check_id,
+       c.numero_cheque,
+       c.nom_beneficiaire,
+       c.nom_emetteur,
+       c.date_emission,
+       c.date_encaissement,
+       c.statut as check_statut,
+       c.description as check_description
+     FROM expense_payments ep
+     LEFT JOIN checks c ON ep.check_id = c.id
+     WHERE ep.expense_id = $1
+     ORDER BY ep.date_paiement DESC, ep.created_at DESC`,
     [id]
   );
 
+  // Transformer les paiements pour inclure les données du chèque
+  const payments = paymentsResult.rows.map(row => {
+    const payment: any = {
+      id: row.id,
+      expense_id: row.expense_id,
+      user_id: row.user_id,
+      montant_paye: row.montant_paye,
+      montant_declare: row.montant_declare,
+      montant_non_declare: row.montant_non_declare,
+      date_paiement: row.date_paiement,
+      mode_paiement: row.mode_paiement,
+      description: row.description,
+      reference_paiement: row.reference_paiement,
+      check_id: row.check_id,
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    };
+
+    // Ajouter les données du chèque si présentes
+    if (row.check_id && row.numero_cheque) {
+      payment.check_data = {
+        id: row.check_id,
+        numero_cheque: row.numero_cheque,
+        nom_beneficiaire: row.nom_beneficiaire,
+        nom_emetteur: row.nom_emetteur,
+        date_emission: row.date_emission,
+        date_encaissement: row.date_encaissement,
+        statut: row.check_statut,
+        description: row.check_description
+      };
+    }
+
+    return payment;
+  });
+
   const expenseWithPayments = {
     ...expenseResult.rows[0],
-    payments: paymentsResult.rows
+    payments: payments
   };
 
   const response: ApiResponse = {
@@ -691,6 +737,14 @@ router.post('/:id/payments', asyncHandler(async (req: Request, res: Response) =>
     );
 
     console.log('✅ Chèque créé:', chequeResult.rows[0]);
+
+    // Lier le chèque au paiement
+    await query(
+      'UPDATE expense_payments SET check_id = $1 WHERE id = $2',
+      [chequeResult.rows[0].id, payment.id]
+    );
+
+    console.log('✅ Chèque lié au paiement:', payment.id);
   }
 
   const response: ApiResponse = {
@@ -790,11 +844,13 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
   const { paymentId } = req.params;
   const validatedData = validate(createExpensePaymentSchema, req.body);
 
-  // Vérifier que le paiement appartient à l'utilisateur
+  // Vérifier que le paiement appartient à l'utilisateur et récupérer le chèque associé
   const paymentCheck = await query(
-    `SELECT ep.*, e.statut as expense_statut, e.nom as expense_nom
+    `SELECT ep.*, e.statut as expense_statut, e.nom as expense_nom,
+            c.id as existing_check_id
      FROM expense_payments ep
      JOIN expenses e ON ep.expense_id = e.id
+     LEFT JOIN checks c ON ep.check_id = c.id
      WHERE ep.id = $1 AND ep.user_id = $2`,
     [paymentId, req.user!.userId]
   );
@@ -830,15 +886,9 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
     ]
   );
 
-  // Si c'est un paiement par chèque, gérer le chèque associé
+  // Gestion du chèque selon le mode de paiement
   if (validatedData.mode_paiement === 'cheque' && validatedData.cheque_data) {
-    // Vérifier s'il y a déjà un chèque associé à ce paiement
-    const existingCheque = await query(
-      'SELECT id FROM checks WHERE expense_id = $1 AND numero_cheque = $2',
-      [payment.expense_id, payment.reference_paiement]
-    );
-
-    if (existingCheque.rows.length > 0) {
+    if (payment.existing_check_id) {
       // Mettre à jour le chèque existant
       await query(
         `UPDATE checks
@@ -854,18 +904,20 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
           validatedData.cheque_data.date_emission,
           validatedData.cheque_data.date_encaissement,
           `Paiement dépense: ${payment.expense_nom} - ${validatedData.description || ''}`,
-          existingCheque.rows[0].id
+          payment.existing_check_id
         ]
       );
+      console.log('✅ Chèque existant mis à jour:', payment.existing_check_id);
     } else {
-      // Créer un nouveau chèque
-      await query(
+      // Créer un nouveau chèque et le lier au paiement
+      const newCheckResult = await query(
         `INSERT INTO checks (
            user_id, expense_id, type_cheque, montant, numero_cheque,
            nom_beneficiaire, nom_emetteur, date_emission, date_encaissement,
            statut, description
          )
-         VALUES ($1, $2, 'donne', $3, $4, $5, $6, $7, $8, 'emis', $9)`,
+         VALUES ($1, $2, 'donne', $3, $4, $5, $6, $7, $8, 'emis', $9)
+         RETURNING id`,
         [
           req.user!.userId,
           payment.expense_id,
@@ -878,7 +930,21 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
           `Paiement dépense: ${payment.expense_nom} - ${validatedData.description || ''}`
         ]
       );
+
+      // Lier le nouveau chèque au paiement
+      await query(
+        'UPDATE expense_payments SET check_id = $1 WHERE id = $2',
+        [newCheckResult.rows[0].id, paymentId]
+      );
+      console.log('✅ Nouveau chèque créé et lié:', newCheckResult.rows[0].id);
     }
+  } else if (payment.existing_check_id && validatedData.mode_paiement !== 'cheque') {
+    // Si on change le mode de paiement d'un chèque vers autre chose, supprimer la liaison
+    await query(
+      'UPDATE expense_payments SET check_id = NULL WHERE id = $1',
+      [paymentId]
+    );
+    console.log('✅ Liaison avec chèque supprimée (changement de mode de paiement)');
   }
 
   const response: ApiResponse = {

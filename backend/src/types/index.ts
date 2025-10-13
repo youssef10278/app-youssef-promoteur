@@ -137,8 +137,21 @@ export interface ExpensePayment {
   mode_paiement: 'espece' | 'cheque' | 'cheque_espece' | 'virement';
   description?: string;
   reference_paiement?: string;
+  check_id?: string;
   created_at: Date;
   updated_at: Date;
+  // Données du chèque associé (via jointure)
+  check_data?: {
+    id: string;
+    numero_cheque: string;
+    nom_beneficiaire: string;
+    nom_emetteur: string;
+    date_emission: string;
+    date_encaissement: string;
+    banque_emettrice?: string;
+    statut: string;
+    description?: string;
+  };
 }
 
 // Dépense avec ses paiements et totaux calculés
