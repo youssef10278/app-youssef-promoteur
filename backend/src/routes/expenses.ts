@@ -888,7 +888,27 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
 
   // Gestion du chèque selon le mode de paiement
   if (validatedData.mode_paiement === 'cheque' && validatedData.cheque_data) {
-    if (payment.existing_check_id) {
+    let existingCheckId = payment.existing_check_id;
+
+    // Si pas de check_id mais c'était un paiement par chèque, chercher par expense_id + numero_cheque
+    if (!existingCheckId && payment.mode_paiement === 'cheque' && payment.reference_paiement) {
+      const oldCheckResult = await query(
+        'SELECT id FROM checks WHERE expense_id = $1 AND numero_cheque = $2 AND type_cheque = $3',
+        [payment.expense_id, payment.reference_paiement, 'donne']
+      );
+
+      if (oldCheckResult.rows.length > 0) {
+        existingCheckId = oldCheckResult.rows[0].id;
+        // Lier ce chèque au paiement pour les prochaines fois
+        await query(
+          'UPDATE expense_payments SET check_id = $1 WHERE id = $2',
+          [existingCheckId, paymentId]
+        );
+        console.log('✅ Chèque existant trouvé et lié:', existingCheckId);
+      }
+    }
+
+    if (existingCheckId) {
       // Mettre à jour le chèque existant
       await query(
         `UPDATE checks
@@ -904,10 +924,10 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
           validatedData.cheque_data.date_emission,
           validatedData.cheque_data.date_encaissement,
           `Paiement dépense: ${payment.expense_nom} - ${validatedData.description || ''}`,
-          payment.existing_check_id
+          existingCheckId
         ]
       );
-      console.log('✅ Chèque existant mis à jour:', payment.existing_check_id);
+      console.log('✅ Chèque existant mis à jour:', existingCheckId);
     } else {
       // Créer un nouveau chèque et le lier au paiement
       const newCheckResult = await query(
