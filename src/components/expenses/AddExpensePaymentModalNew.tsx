@@ -66,6 +66,14 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
     mode_paiement: 'espece',
     description: '',
     reference_paiement: '',
+    cheque_data: {
+      numero_cheque: '',
+      nom_beneficiaire: '',
+      nom_emetteur: '',
+      date_emission: new Date().toISOString().split('T')[0],
+      date_encaissement: new Date().toISOString().split('T')[0],
+      banque_emettrice: '',
+    },
   });
 
   const resetForm = () => {
@@ -77,6 +85,14 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
       mode_paiement: 'espece',
       description: '',
       reference_paiement: '',
+      cheque_data: {
+        numero_cheque: '',
+        nom_beneficiaire: '',
+        nom_emetteur: '',
+        date_emission: new Date().toISOString().split('T')[0],
+        date_encaissement: new Date().toISOString().split('T')[0],
+        banque_emettrice: '',
+      },
     });
     setValidationErrors([]);
   };
@@ -109,8 +125,22 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
       errors.push('Le mode de paiement est obligatoire');
     }
 
-    if (formData.mode_paiement === 'cheque' && !formData.reference_paiement?.trim()) {
-      errors.push('Le numéro de chèque est obligatoire pour un paiement par chèque');
+    if (formData.mode_paiement === 'cheque') {
+      if (!formData.cheque_data?.numero_cheque?.trim()) {
+        errors.push('Le numéro de chèque est obligatoire');
+      }
+      if (!formData.cheque_data?.nom_beneficiaire?.trim()) {
+        errors.push('Le nom du bénéficiaire est obligatoire');
+      }
+      if (!formData.cheque_data?.nom_emetteur?.trim()) {
+        errors.push('Le nom de l\'émetteur est obligatoire');
+      }
+      if (!formData.cheque_data?.date_emission) {
+        errors.push('La date d\'émission est obligatoire');
+      }
+      if (!formData.cheque_data?.date_encaissement) {
+        errors.push('La date d\'encaissement est obligatoire');
+      }
     }
 
     if (formData.mode_paiement === 'virement' && !formData.reference_paiement?.trim()) {
@@ -365,18 +395,122 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
                 </div>
               </div>
 
-              {/* Référence de paiement */}
-              {(formData.mode_paiement === 'cheque' || formData.mode_paiement === 'virement') && (
+              {/* Formulaire de chèque complet */}
+              {formData.mode_paiement === 'cheque' && (
+                <Card className="border-blue-200 bg-blue-50/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center space-x-2">
+                      <Receipt className="h-5 w-5 text-blue-600" />
+                      <span>Informations du Chèque</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="numero_cheque">Numéro de chèque *</Label>
+                        <Input
+                          id="numero_cheque"
+                          type="text"
+                          value={formData.cheque_data?.numero_cheque || ''}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            cheque_data: { ...prev.cheque_data!, numero_cheque: e.target.value }
+                          }))}
+                          placeholder="Ex: 1234567"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="banque_emettrice">Banque émettrice</Label>
+                        <Input
+                          id="banque_emettrice"
+                          type="text"
+                          value={formData.cheque_data?.banque_emettrice || ''}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            cheque_data: { ...prev.cheque_data!, banque_emettrice: e.target.value }
+                          }))}
+                          placeholder="Ex: BMCE Bank"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="nom_emetteur">Nom de l'émetteur *</Label>
+                        <Input
+                          id="nom_emetteur"
+                          type="text"
+                          value={formData.cheque_data?.nom_emetteur || ''}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            cheque_data: { ...prev.cheque_data!, nom_emetteur: e.target.value }
+                          }))}
+                          placeholder="Nom de celui qui émet le chèque"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="nom_beneficiaire">Nom du bénéficiaire *</Label>
+                        <Input
+                          id="nom_beneficiaire"
+                          type="text"
+                          value={formData.cheque_data?.nom_beneficiaire || ''}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            cheque_data: { ...prev.cheque_data!, nom_beneficiaire: e.target.value }
+                          }))}
+                          placeholder="Nom de celui qui reçoit le chèque"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="date_emission">Date d'émission *</Label>
+                        <Input
+                          id="date_emission"
+                          type="date"
+                          value={formData.cheque_data?.date_emission || ''}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            cheque_data: { ...prev.cheque_data!, date_emission: e.target.value }
+                          }))}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="date_encaissement">Date d'encaissement prévue *</Label>
+                        <Input
+                          id="date_encaissement"
+                          type="date"
+                          value={formData.cheque_data?.date_encaissement || ''}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            cheque_data: { ...prev.cheque_data!, date_encaissement: e.target.value }
+                          }))}
+                          required
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Référence de virement */}
+              {formData.mode_paiement === 'virement' && (
                 <div className="space-y-2">
-                  <Label htmlFor="reference_paiement">
-                    {formData.mode_paiement === 'cheque' ? 'Numéro de chèque *' : 'Référence de virement *'}
-                  </Label>
+                  <Label htmlFor="reference_paiement">Référence de virement *</Label>
                   <Input
                     id="reference_paiement"
                     type="text"
                     value={formData.reference_paiement}
                     onChange={(e) => setFormData(prev => ({ ...prev, reference_paiement: e.target.value }))}
-                    placeholder={formData.mode_paiement === 'cheque' ? 'Ex: 1234567' : 'Ex: VIR-2024-001'}
+                    placeholder="Ex: VIR-2024-001"
                     required
                   />
                 </div>

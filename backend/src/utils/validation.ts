@@ -94,7 +94,20 @@ export const createExpensePaymentSchema = Joi.object({
   date_paiement: Joi.date().iso().required(),
   mode_paiement: Joi.string().valid('espece', 'cheque', 'cheque_espece', 'virement').required(),
   description: Joi.string().max(500).optional().allow(''),
-  reference_paiement: Joi.string().max(100).optional().allow('')
+  reference_paiement: Joi.string().max(100).optional().allow(''),
+  // Données du chèque (obligatoires si mode_paiement = 'cheque')
+  cheque_data: Joi.when('mode_paiement', {
+    is: 'cheque',
+    then: Joi.object({
+      numero_cheque: Joi.string().max(50).required(),
+      nom_beneficiaire: Joi.string().max(200).required(),
+      nom_emetteur: Joi.string().max(200).required(),
+      date_emission: Joi.date().iso().required(),
+      date_encaissement: Joi.date().iso().required(),
+      banque_emettrice: Joi.string().max(200).optional().allow('')
+    }).required(),
+    otherwise: Joi.optional()
+  })
 }).custom((value, helpers) => {
   // Vérifier que montant_paye = montant_declare + montant_non_declare
   const total = value.montant_declare + value.montant_non_declare;

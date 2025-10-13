@@ -629,7 +629,7 @@ router.post('/:id/payments', asyncHandler(async (req: Request, res: Response) =>
 
   // Vérifier que la dépense appartient à l'utilisateur
   const expenseCheck = await query(
-    'SELECT id, statut FROM expenses WHERE id = $1 AND user_id = $2',
+    'SELECT id, nom, statut FROM expenses WHERE id = $1 AND user_id = $2',
     [id, req.user!.userId]
   );
 
@@ -665,9 +665,37 @@ router.post('/:id/payments', asyncHandler(async (req: Request, res: Response) =>
     ]
   );
 
+  const payment = result.rows[0];
+
+  // Si c'est un paiement par chèque, créer le chèque dans la table checks
+  if (validatedData.mode_paiement === 'cheque' && validatedData.cheque_data) {
+    const chequeResult = await query(
+      `INSERT INTO checks (
+         user_id, expense_id, type_cheque, montant, numero_cheque,
+         nom_beneficiaire, nom_emetteur, date_emission, date_encaissement,
+         statut, description
+       )
+       VALUES ($1, $2, 'donne', $3, $4, $5, $6, $7, $8, 'emis', $9)
+       RETURNING *`,
+      [
+        req.user!.userId,
+        id,
+        validatedData.montant_paye,
+        validatedData.cheque_data.numero_cheque,
+        validatedData.cheque_data.nom_beneficiaire,
+        validatedData.cheque_data.nom_emetteur,
+        validatedData.cheque_data.date_emission,
+        validatedData.cheque_data.date_encaissement,
+        `Paiement dépense: ${expense.nom || 'Dépense'} - ${validatedData.description || ''}`
+      ]
+    );
+
+    console.log('✅ Chèque créé:', chequeResult.rows[0]);
+  }
+
   const response: ApiResponse = {
     success: true,
-    data: result.rows[0],
+    data: payment,
     message: 'Paiement ajouté avec succès'
   };
 

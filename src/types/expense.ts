@@ -133,8 +133,15 @@ export interface ExpensePaymentFormData {
   mode_paiement: PaymentMode;
   description?: string;
   reference_paiement?: string;
-  // Pour les chèques
-  cheques?: CheckData[];
+  // Pour les chèques - informations complètes
+  cheque_data?: {
+    numero_cheque: string;
+    nom_beneficiaire: string;
+    nom_emetteur: string;
+    date_emission: string;
+    date_encaissement: string;
+    banque_emettrice?: string;
+  };
 }
 
 export const PAYMENT_MODES = {
