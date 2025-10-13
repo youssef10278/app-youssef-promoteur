@@ -71,7 +71,14 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
         mode_paiement: editingPayment.mode_paiement,
         description: editingPayment.description || '',
         reference_paiement: editingPayment.reference_paiement || '',
-        cheque_data: {
+        cheque_data: editingPayment.check_data ? {
+          numero_cheque: editingPayment.check_data.numero_cheque,
+          nom_beneficiaire: editingPayment.check_data.nom_beneficiaire,
+          nom_emetteur: editingPayment.check_data.nom_emetteur,
+          date_emission: editingPayment.check_data.date_emission.split('T')[0],
+          date_encaissement: editingPayment.check_data.date_encaissement.split('T')[0],
+          banque_emettrice: '',
+        } : {
           numero_cheque: editingPayment.reference_paiement || '',
           nom_beneficiaire: '',
           nom_emetteur: '',

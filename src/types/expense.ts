@@ -59,8 +59,20 @@ export interface ExpensePayment {
   mode_paiement: PaymentMode;
   description?: string;
   reference_paiement?: string;
+  check_id?: string;
   created_at: string;
   updated_at: string;
+  // Données du chèque associé (via jointure backend)
+  check_data?: {
+    id: string;
+    numero_cheque: string;
+    nom_beneficiaire: string;
+    nom_emetteur: string;
+    date_emission: string;
+    date_encaissement: string;
+    statut: string;
+    description?: string;
+  };
 }
 
 // Dépense avec ses paiements
