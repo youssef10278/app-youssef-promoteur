@@ -20,26 +20,34 @@ import { ExpenseFilters as ExpenseFiltersComponent, ExpenseFiltersState } from '
 import { ExpenseList } from '@/components/expenses/ExpenseList';
 import { ModifyExpenseModal } from '@/components/expenses/ModifyExpenseModal';
 import { ExpenseDetailsModal } from '@/components/expenses/ExpenseDetailsModal';
+import CreateSimpleExpenseModal from '@/components/expenses/CreateSimpleExpenseModal';
+import ExpenseDetailsModalNew from '@/components/expenses/ExpenseDetailsModalNew';
 import { ExpenseService } from '@/services/expenseService';
+import { useExpensesNew } from '@/hooks/useExpensesNew';
 import { ProjectSelector } from '@/components/common/ProjectSelector';
-import { Project, Expense, ExpenseFormData, CheckData, PAYMENT_MODES, ExpenseFilters } from '@/types/expense';
+import { Project, Expense, ExpenseWithPayments, ExpenseFormData, CheckData, PAYMENT_MODES, ExpenseFilters } from '@/types/expense';
 import { eventBus, EVENTS } from '@/utils/eventBus';
 
 const Expenses = () => {
   const { user, isLoading: authLoading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingExpenses, setIsLoadingExpenses] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [selectedExpenseForPayments, setSelectedExpenseForPayments] = useState<Expense | null>(null);
+  const [selectedExpenseForPayments, setSelectedExpenseForPayments] = useState<ExpenseWithPayments | null>(null);
   const { toast } = useToast();
+
+  // Utiliser le nouveau hook pour la gestion des dépenses
+  const {
+    expenses,
+    isLoading: isLoadingExpenses,
+    createSimpleExpense,
+    refreshExpenses,
+    loadExpenses
+  } = useExpensesNew(selectedProject !== 'all' ? selectedProject : undefined);
 
   // États pour les filtres
   const [filters, setFilters] = useState<ExpenseFiltersState>({
@@ -53,21 +61,8 @@ const Expenses = () => {
     sortOrder: 'desc'
   });
 
-  // Form state
-  const [formData, setFormData] = useState<ExpenseFormData>({
-    project_id: '',
-    nom: '',
-    montant_declare: 0,
-    montant_non_declare: 0,
-    montant_total: 0,
-    mode_paiement: 'espece',
-    montant_cheque: 0,
-    montant_espece: 0,
-    description: '',
-    cheques: [],
-  });
-
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  // Filtrer les dépenses localement
+  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -77,10 +72,27 @@ const Expenses = () => {
 
   // Recharger les dépenses quand les filtres ou le projet sélectionné changent
   useEffect(() => {
-    if (user) {
-      fetchExpenses();
+    if (user && selectedProject) {
+      // Convertir les filtres au format attendu par le service
+      const expenseFilters: ExpenseFilters = {
+        searchTerm: filters.searchTerm || undefined,
+        mode_paiement: filters.mode_paiement || undefined,
+        date_debut: filters.date_debut?.toISOString() || undefined,
+        date_fin: filters.date_fin?.toISOString() || undefined,
+        montant_min: filters.montant_min || undefined,
+        montant_max: filters.montant_max || undefined,
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder
+      };
+
+      loadExpenses(selectedProject !== 'all' ? selectedProject : undefined, expenseFilters);
     }
-  }, [user, selectedProject, filters]);
+  }, [user, selectedProject, filters, loadExpenses]);
+
+  // Mettre à jour les dépenses filtrées quand les dépenses changent
+  useEffect(() => {
+    setFilteredExpenses(expenses);
+  }, [expenses]);
 
   const fetchProjects = async () => {
     try {
@@ -94,6 +106,7 @@ const Expenses = () => {
       }));
 
       setProjects(mappedProjects);
+      setIsLoading(false);
     } catch (error: any) {
       console.error('Erreur lors du chargement des projets:', error);
       toast({
@@ -101,37 +114,7 @@ const Expenses = () => {
         description: "Impossible de charger les projets",
         variant: "destructive",
       });
-    }
-  };
-
-  const fetchExpenses = async () => {
-    setIsLoadingExpenses(true);
-    try {
-      // Convertir les filtres au format attendu par le service
-      const expenseFilters: ExpenseFilters = {
-        searchTerm: filters.searchTerm || undefined,
-        mode_paiement: filters.mode_paiement || undefined,
-        date_debut: filters.date_debut?.toISOString() || undefined,
-        date_fin: filters.date_fin?.toISOString() || undefined,
-        montant_min: filters.montant_min || undefined,
-        montant_max: filters.montant_max || undefined,
-        sortBy: filters.sortBy,
-        sortOrder: filters.sortOrder
-      };
-
-      // Charger les dépenses depuis le service
-      const expensesData = await ExpenseService.getExpenses(selectedProject, expenseFilters);
-      setExpenses(expensesData);
-      setFilteredExpenses(expensesData);
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les dépenses",
-        variant: "destructive",
-      });
-    } finally {
       setIsLoading(false);
-      setIsLoadingExpenses(false);
     }
   };
 
@@ -140,252 +123,15 @@ const Expenses = () => {
     setFilters(newFilters);
   };
 
-  // Validation functions
-  const validateForm = (): string[] => {
-    const errors: string[] = [];
-
-    if (!formData.project_id) {
-      errors.push("Veuillez sélectionner un projet");
-    }
-
-    if (!formData.nom.trim()) {
-      errors.push("Le nom de la dépense est requis");
-    }
-
-    if (formData.montant_total <= 0) {
-      errors.push("Le montant total doit être supérieur à 0");
-    }
-
-    // Validation pour les paiements avec chèques
-    if (formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece') {
-      if (formData.cheques.length === 0) {
-        errors.push("Au moins un chèque doit être ajouté");
-      }
-
-      // Validation des chèques individuels
-      formData.cheques.forEach((cheque, index) => {
-        if (!cheque.numero_cheque.trim()) {
-          errors.push(`Chèque ${index + 1}: Le numéro de chèque est requis`);
-        }
-        if (!cheque.nom_beneficiaire.trim()) {
-          errors.push(`Chèque ${index + 1}: Le nom du bénéficiaire est requis`);
-        }
-        if (!cheque.nom_emetteur.trim()) {
-          errors.push(`Chèque ${index + 1}: Le nom de l'émetteur est requis`);
-        }
-        if (!cheque.date_emission) {
-          errors.push(`Chèque ${index + 1}: La date d'émission est requise`);
-        }
-        if (!cheque.date_encaissement) {
-          errors.push(`Chèque ${index + 1}: La date d'encaissement est requise`);
-        }
-        if (cheque.montant <= 0) {
-          errors.push(`Chèque ${index + 1}: Le montant doit être supérieur à 0`);
-        }
-      });
-
-      if (formData.mode_paiement === 'cheque') {
-        // Mode chèque uniquement - la somme des chèques doit égaler le montant total
-        const totalCheques = formData.cheques.reduce((sum, cheque) => sum + cheque.montant, 0);
-        if (Math.abs(totalCheques - formData.montant_total) > 0.01) {
-          errors.push(`La somme des chèques (${totalCheques.toFixed(2)} DH) doit égaler le montant total (${formData.montant_total.toFixed(2)} DH)`);
-        }
-      } else if (formData.mode_paiement === 'cheque_espece') {
-        // Mode mixte - validation des montants séparés
-        const totalPaiements = formData.montant_cheque + formData.montant_espece;
-        if (Math.abs(totalPaiements - formData.montant_total) > 0.01) {
-          errors.push(`Le total des paiements (${totalPaiements.toFixed(2)} DH) doit égaler le montant total (${formData.montant_total.toFixed(2)} DH)`);
-        }
-
-        if (formData.montant_cheque <= 0) {
-          errors.push("Le montant des chèques doit être supérieur à 0");
-        }
-
-        if (formData.montant_espece <= 0) {
-          errors.push("Le montant en espèces doit être supérieur à 0");
-        }
-
-        // Vérifier que la somme des chèques correspond au montant_cheque
-        const totalCheques = formData.cheques.reduce((sum, cheque) => sum + cheque.montant, 0);
-        if (Math.abs(totalCheques - formData.montant_cheque) > 0.01) {
-          errors.push(`La somme des chèques (${totalCheques.toFixed(2)} DH) doit égaler le montant des chèques (${formData.montant_cheque.toFixed(2)} DH)`);
-        }
-      }
-    }
-
-    return errors;
+  // Handlers pour le nouveau système de dépenses
+  const handleCreateExpenseSuccess = () => {
+    setIsCreateModalOpen(false);
+    refreshExpenses();
   };
 
-  const resetForm = () => {
-    setFormData({
-      project_id: '',
-      nom: '',
-      montant_declare: 0,
-      montant_non_declare: 0,
-      montant_total: 0,
-      mode_paiement: 'espece',
-      montant_cheque: 0,
-      montant_espece: 0,
-      description: '',
-      cheques: [],
-    });
-    setValidationErrors([]);
-  };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
 
-    const errors = validateForm();
-    if (errors.length > 0) {
-      setValidationErrors(errors);
-      setIsSubmitting(false);
-      return;
-    }
 
-    try {
-      // Calculate montant_total if not set
-      const montantTotal = formData.montant_total || (formData.montant_declare + formData.montant_non_declare);
-
-      // Adapter les données au schéma backend
-      const expenseData = {
-        project_id: formData.project_id,
-        nom: formData.nom,
-        montant_declare: formData.montant_declare || 0,
-        montant_non_declare: formData.montant_non_declare || 0,
-        mode_paiement: formData.mode_paiement,
-        description: formData.description || '',
-      };
-
-      // Si montant_total est renseigné mais pas les montants détaillés,
-      // on met tout dans montant_declare par défaut
-      if (formData.montant_total && !formData.montant_declare && !formData.montant_non_declare) {
-        expenseData.montant_declare = formData.montant_total;
-        expenseData.montant_non_declare = 0;
-      }
-
-      console.log('📤 Envoi des données dépense:', expenseData);
-
-      // Créer la dépense via l'API
-      const response = await apiClient.post('/expenses', expenseData);
-      const expenseResult = response.data;
-
-      console.log('✅ Dépense créée:', expenseResult);
-
-      // Si mode paiement avec chèques, insérer les chèques
-      if ((formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece') && formData.cheques.length > 0) {
-        // Créer les chèques un par un
-        for (const cheque of formData.cheques) {
-          const chequeData = {
-            project_id: formData.project_id,
-            expense_id: expenseResult.id,
-            type_cheque: 'donne', // Les chèques de dépense sont toujours des chèques donnés
-            montant: cheque.montant,
-            numero_cheque: cheque.numero_cheque,
-            nom_beneficiaire: cheque.nom_beneficiaire,
-            nom_emetteur: cheque.nom_emetteur,
-            date_emission: cheque.date_emission,
-            date_encaissement: cheque.date_encaissement || null,
-            statut: 'emis',
-            facture_recue: false,
-            description: `Chèque pour dépense: ${formData.nom}`
-          };
-
-          console.log('📤 Envoi du chèque:', chequeData);
-
-          try {
-            const checkResponse = await apiClient.post('/checks', chequeData);
-            console.log('✅ Chèque créé avec succès');
-
-            // Émettre un événement pour notifier la création du chèque
-            eventBus.emit(EVENTS.CHECK_CREATED, {
-              check: checkResponse.data,
-              source: 'expense'
-            });
-          } catch (error) {
-            console.error('❌ Erreur lors de la création du chèque:', error);
-            toast({
-              title: "Attention",
-              description: "Dépense créée mais erreur lors de l'enregistrement d'un chèque",
-              variant: "destructive",
-            });
-          }
-        }
-      }
-
-      toast({
-        title: "Succès",
-        description: "Dépense ajoutée avec succès",
-      });
-
-      setIsDialogOpen(false);
-      resetForm();
-      fetchExpenses();
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: "Impossible d'ajouter la dépense",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Form handlers
-  const handleFormChange = (field: keyof ExpenseFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    setValidationErrors([]);
-  };
-
-  const handlePaymentModeChange = (mode: ExpenseFormData['mode_paiement']) => {
-    setFormData(prev => {
-      if (mode === 'cheque') {
-        // Mode chèque uniquement
-        return {
-          ...prev,
-          mode_paiement: mode,
-          montant_cheque: prev.montant_total,
-          montant_espece: 0,
-          cheques: prev.cheques,
-        };
-      } else if (mode === 'cheque_espece') {
-        // Mode mixte chèque et espèces
-        return {
-          ...prev,
-          mode_paiement: mode,
-          montant_cheque: prev.montant_cheque || 0,
-          montant_espece: prev.montant_espece || prev.montant_total,
-          cheques: prev.cheques,
-        };
-      } else {
-        // Autres modes (espèce, virement)
-        return {
-          ...prev,
-          mode_paiement: mode,
-          montant_cheque: 0,
-          montant_espece: mode === 'espece' ? prev.montant_total : 0,
-          cheques: [],
-        };
-      }
-    });
-    setValidationErrors([]);
-  };
-
-  const handleChequesChange = (cheques: CheckData[]) => {
-    setFormData(prev => ({ ...prev, cheques }));
-    setValidationErrors([]);
-  };
-
-  const handleTotalChequeAmountChange = (amount: number) => {
-    setFormData(prev => ({ ...prev, montant_cheque: amount }));
-    setValidationErrors([]);
-  };
-
-  const handleCashAmountChange = (amount: number) => {
-    setFormData(prev => ({ ...prev, montant_espece: amount }));
-    setValidationErrors([]);
-  };
 
   // Handlers pour la modification des dépenses
   const handleEditExpense = (expense: Expense) => {
@@ -394,7 +140,7 @@ const Expenses = () => {
   };
 
   const handleModifySuccess = () => {
-    fetchExpenses();
+    refreshExpenses();
     setIsModifyModalOpen(false);
     setSelectedExpense(null);
   };
@@ -405,9 +151,19 @@ const Expenses = () => {
   };
 
   // Handlers pour les paiements de dépenses
-  const handleViewPayments = (expense: Expense) => {
-    setSelectedExpenseForPayments(expense);
-    setIsPaymentModalOpen(true);
+  const handleViewPayments = async (expense: Expense) => {
+    try {
+      // Charger les détails complets de la dépense avec ses paiements
+      const expenseWithPayments = await ExpenseService.getExpenseWithPayments(expense.id);
+      setSelectedExpenseForPayments(expenseWithPayments);
+      setIsPaymentModalOpen(true);
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les détails de la dépense",
+        variant: "destructive",
+      });
+    }
   };
 
   const handlePaymentModalClose = () => {
@@ -416,7 +172,7 @@ const Expenses = () => {
   };
 
   const handlePaymentSuccess = () => {
-    fetchExpenses(); // Recharger les dépenses pour mettre à jour les statuts de paiement
+    refreshExpenses(); // Recharger les dépenses pour mettre à jour les statuts de paiement
   };
 
 
@@ -451,253 +207,14 @@ const Expenses = () => {
                 </p>
               </div>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="btn-secondary-gradient w-full sm:w-auto">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Ajouter Dépense
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Nouvelle Dépense</DialogTitle>
-                  <DialogDescription>
-                    Ajouter une nouvelle dépense avec gestion des paiements
-                  </DialogDescription>
-                </DialogHeader>
+            <Button
+              className="btn-secondary-gradient w-full sm:w-auto"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter Dépense
+            </Button>
 
-                {validationErrors.length > 0 && (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      <ul className="list-disc list-inside space-y-1">
-                        {validationErrors.map((error, index) => (
-                          <li key={index}>{error}</li>
-                        ))}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Section 1: Informations de base */}
-                  <Card className="card-premium">
-                    <CardHeader>
-                      <CardTitle className="text-lg">Informations de base</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="project_id">Projet *</Label>
-                        <Select
-                          value={formData.project_id}
-                          onValueChange={(value) => handleFormChange('project_id', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner un projet" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {projects.map((project) => (
-                              <SelectItem key={project.id} value={project.id}>
-                                {project.nom}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="nom">Nom de la dépense *</Label>
-                        <Input
-                          id="nom"
-                          value={formData.nom}
-                          onChange={(e) => handleFormChange('nom', e.target.value)}
-                          placeholder="Ex: Achat terrain"
-                          required
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea
-                          id="description"
-                          value={formData.description}
-                          onChange={(e) => handleFormChange('description', e.target.value)}
-                          placeholder="Détails additionnels sur cette dépense..."
-                          rows={3}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Section 2: Montants */}
-                  <Card className="card-premium">
-                    <CardHeader>
-                      <CardTitle className="text-lg">Montants</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="montant_declare">Montant principal (DH)</Label>
-                          <Input
-                            id="montant_declare"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={formData.montant_declare || ''}
-                            onChange={(e) => {
-                              const value = parseFloat(e.target.value) || 0;
-                              handleFormChange('montant_declare', value);
-                              handleFormChange('montant_total', value + formData.montant_non_declare);
-                            }}
-                            placeholder="0.00"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="montant_non_declare">Autre montant (DH)</Label>
-                          <Input
-                            id="montant_non_declare"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={formData.montant_non_declare || ''}
-                            onChange={(e) => {
-                              const value = parseFloat(e.target.value) || 0;
-                              handleFormChange('montant_non_declare', value);
-                              handleFormChange('montant_total', formData.montant_declare + value);
-                            }}
-                            placeholder="0.00"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="montant_total">Montant total (DH) *</Label>
-                          <Input
-                            id="montant_total"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={formData.montant_total || ''}
-                            onChange={(e) => handleFormChange('montant_total', parseFloat(e.target.value) || 0)}
-                            placeholder="0.00"
-                            required
-                            className="font-semibold"
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Section 3: Mode de paiement */}
-                  <Card className="card-premium">
-                    <CardHeader>
-                      <CardTitle className="text-lg">Mode de paiement</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Méthode de paiement *</Label>
-                        <Select
-                          value={formData.mode_paiement}
-                          onValueChange={handlePaymentModeChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner une méthode" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(PAYMENT_MODES).map(([key, label]) => (
-                              <SelectItem key={key} value={key}>
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Affichage conditionnel pour paiement avec chèque */}
-                      {(formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece') && (
-                        <div className="space-y-6 mt-6">
-                          {formData.mode_paiement === 'cheque_espece' ? (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                              {/* Section Chèques */}
-                              <div>
-                                <CheckForm
-                                  cheques={formData.cheques}
-                                  onChequesChange={handleChequesChange}
-                                  totalChequeAmount={formData.montant_cheque}
-                                  onTotalChequeAmountChange={handleTotalChequeAmountChange}
-                                />
-                              </div>
-
-                              {/* Section Espèces */}
-                              <div>
-                                <CashForm
-                                  montantEspece={formData.montant_espece}
-                                  onMontantEspeceChange={handleCashAmountChange}
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            /* Mode chèque uniquement */
-                            <div>
-                              <CheckForm
-                                cheques={formData.cheques}
-                                onChequesChange={handleChequesChange}
-                                totalChequeAmount={formData.montant_total}
-                                onTotalChequeAmountChange={(amount) => {
-                                  // En mode chèque uniquement, le montant total des chèques doit égaler le montant total
-                                  setFormData(prev => ({ ...prev, montant_cheque: amount }));
-                                }}
-                              />
-                            </div>
-                          )}
-
-                          {/* Résumé des paiements */}
-                          <Card className="bg-muted/30">
-                            <CardContent className="pt-6">
-                              <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                  <span>Montant des chèques :</span>
-                                  <Badge variant="outline" className="bg-primary/10 text-primary">
-                                    {formData.montant_cheque.toLocaleString()} DH
-                                  </Badge>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                  <span>Montant en espèces :</span>
-                                  <Badge variant="outline" className="bg-success/10 text-success">
-                                    {formData.montant_espece.toLocaleString()} DH
-                                  </Badge>
-                                </div>
-                                <div className="border-t pt-2 flex justify-between items-center font-semibold">
-                                  <span>Total des paiements :</span>
-                                  <Badge
-                                    variant={Math.abs((formData.montant_cheque + formData.montant_espece) - formData.montant_total) < 0.01 ? "default" : "destructive"}
-                                    className="text-base px-3 py-1"
-                                  >
-                                    {(formData.montant_cheque + formData.montant_espece).toLocaleString()} DH
-                                  </Badge>
-                                </div>
-                                {Math.abs((formData.montant_cheque + formData.montant_espece) - formData.montant_total) > 0.01 && (
-                                  <div className="text-sm text-destructive">
-                                    ⚠️ Le total des paiements ne correspond pas au montant total
-                                  </div>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <div className="flex gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
-                      Annuler
-                    </Button>
-                    <Button type="submit" className="flex-1 btn-hero" disabled={isSubmitting}>
-                      {isSubmitting ? "Ajout..." : "Ajouter"}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
           </div>
         </div>
       </header>
@@ -770,16 +287,22 @@ const Expenses = () => {
         />
       )}
 
+      {/* Modal de création simple */}
+      <CreateSimpleExpenseModal
+        projects={projects}
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={handleCreateExpenseSuccess}
+      />
+
       {/* Modal de gestion des paiements */}
       {selectedExpenseForPayments && (
-        <Dialog open={isPaymentModalOpen} onOpenChange={handlePaymentModalClose}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-            <ExpenseDetailsModal
-              expense={selectedExpenseForPayments}
-              onRefresh={handlePaymentSuccess}
-            />
-          </DialogContent>
-        </Dialog>
+        <ExpenseDetailsModalNew
+          expense={selectedExpenseForPayments}
+          isOpen={isPaymentModalOpen}
+          onClose={handlePaymentModalClose}
+          onRefresh={handlePaymentSuccess}
+        />
       )}
     </div>
   );
