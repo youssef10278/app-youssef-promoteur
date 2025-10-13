@@ -217,24 +217,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
                 </div>
               </div>
 
-              {/* Barre de progression du paiement */}
-              {((expense.total_declare_calcule || 0) + (expense.total_non_declare_calcule || 0)) > 0 && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progression du paiement</span>
-                    <span>{Math.round(((expense.total_paye_calcule || 0) / ((expense.total_declare_calcule || 0) + (expense.total_non_declare_calcule || 0))) * 100)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(((expense.total_paye_calcule || 0) / ((expense.total_declare_calcule || 0) + (expense.total_non_declare_calcule || 0))) * 100, 100)}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-muted-foreground text-center">
-                    Restant: {formatAmount(((expense.total_declare_calcule || 0) + (expense.total_non_declare_calcule || 0)) - (expense.total_paye_calcule || 0))} DH
-                  </div>
-                </div>
-              )}
+
 
               {/* Description */}
               {expense.description && (
