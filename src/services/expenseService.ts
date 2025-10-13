@@ -141,7 +141,7 @@ export class ExpenseService {
    */
   static async createSimpleExpense(data: SimpleExpenseFormData): Promise<Expense> {
     try {
-      const response = await apiClient.post('/api/expenses/create-simple', data);
+      const response = await apiClient.post('/expenses/create-simple', data);
 
       if (!response.success || !response.data) {
         throw new Error(response.error || 'Erreur lors de la création de la dépense');
@@ -159,7 +159,7 @@ export class ExpenseService {
    */
   static async getExpenseWithPayments(expenseId: string): Promise<ExpenseWithPayments> {
     try {
-      const response = await apiClient.get(`/api/expenses/${expenseId}/with-payments`);
+      const response = await apiClient.get(`/expenses/${expenseId}/with-payments`);
 
       if (!response.success || !response.data) {
         throw new Error(response.error || 'Erreur lors de la récupération de la dépense');
@@ -177,7 +177,7 @@ export class ExpenseService {
    */
   static async addExpensePayment(expenseId: string, data: ExpensePaymentFormData): Promise<ExpensePayment> {
     try {
-      const response = await apiClient.post(`/api/expenses/${expenseId}/payments`, data);
+      const response = await apiClient.post(`/expenses/${expenseId}/payments`, data);
 
       if (!response.success || !response.data) {
         throw new Error(response.error || 'Erreur lors de l\'ajout du paiement');
@@ -195,7 +195,7 @@ export class ExpenseService {
    */
   static async getExpensePayments(expenseId: string): Promise<ExpensePayment[]> {
     try {
-      const response = await apiClient.get(`/api/expenses/${expenseId}/payments`);
+      const response = await apiClient.get(`/expenses/${expenseId}/payments`);
 
       if (!response.success || !response.data) {
         throw new Error(response.error || 'Erreur lors de la récupération des paiements');
@@ -213,7 +213,7 @@ export class ExpenseService {
    */
   static async updateExpensePayment(paymentId: string, data: ExpensePaymentFormData): Promise<ExpensePayment> {
     try {
-      const response = await apiClient.put(`/api/expenses/payments/${paymentId}`, data);
+      const response = await apiClient.put(`/expenses/payments/${paymentId}`, data);
 
       if (!response.success || !response.data) {
         throw new Error(response.error || 'Erreur lors de la modification du paiement');
@@ -231,7 +231,7 @@ export class ExpenseService {
    */
   static async deleteExpensePayment(paymentId: string): Promise<void> {
     try {
-      const response = await apiClient.delete(`/api/expenses/payments/${paymentId}`);
+      const response = await apiClient.delete(`/expenses/payments/${paymentId}`);
 
       if (!response.success) {
         throw new Error(response.error || 'Erreur lors de la suppression du paiement');
@@ -247,7 +247,7 @@ export class ExpenseService {
    */
   static async updateExpenseStatus(expenseId: string, statut: 'actif' | 'termine' | 'annule'): Promise<Expense> {
     try {
-      const response = await apiClient.patch(`/api/expenses/${expenseId}/status`, { statut });
+      const response = await apiClient.patch(`/expenses/${expenseId}/status`, { statut });
 
       if (!response.success || !response.data) {
         throw new Error(response.error || 'Erreur lors de la mise à jour du statut');
