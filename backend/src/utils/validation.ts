@@ -79,6 +79,33 @@ export const createExpenseSchema = Joi.object({
   description: Joi.string().max(1000).optional().allow('')
 });
 
+// Nouveau schéma pour créer une dépense simple (sans montant)
+export const createSimpleExpenseSchema = Joi.object({
+  project_id: Joi.string().uuid().required(),
+  nom: Joi.string().min(2).max(200).required(),
+  description: Joi.string().max(1000).optional().allow('')
+});
+
+// Schéma pour ajouter un paiement à une dépense
+export const createExpensePaymentSchema = Joi.object({
+  montant_paye: Joi.number().min(0.01).required(),
+  montant_declare: Joi.number().min(0).default(0),
+  montant_non_declare: Joi.number().min(0).default(0),
+  date_paiement: Joi.date().iso().required(),
+  mode_paiement: Joi.string().valid('espece', 'cheque', 'cheque_espece', 'virement').required(),
+  description: Joi.string().max(500).optional().allow(''),
+  reference_paiement: Joi.string().max(100).optional().allow('')
+}).custom((value, helpers) => {
+  // Vérifier que montant_paye = montant_declare + montant_non_declare
+  const total = value.montant_declare + value.montant_non_declare;
+  if (Math.abs(total - value.montant_paye) > 0.01) {
+    return helpers.error('custom.montant_incoherent');
+  }
+  return value;
+}, 'Validation cohérence montants').messages({
+  'custom.montant_incoherent': 'Le montant payé doit être égal à la somme des montants déclaré et non déclaré'
+});
+
 // Schémas de validation pour les chèques
 export const createCheckSchema = Joi.object({
   project_id: Joi.string().uuid().optional(),

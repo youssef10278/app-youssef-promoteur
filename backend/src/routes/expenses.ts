@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { query } from '../config/database';
-import { validate, createExpenseSchema } from '../utils/validation';
+import { validate, createExpenseSchema, createSimpleExpenseSchema, createExpensePaymentSchema } from '../utils/validation';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import { ApiResponse, Expense } from '../types';
@@ -15,11 +15,11 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   console.log('🔍 GET / - userId:', req.user!.userId);
 
   const result = await query(
-    `SELECT e.*, p.nom as project_nom, e.methode_paiement as mode_paiement
-     FROM expenses e
-     LEFT JOIN projects p ON e.project_id = p.id
-     WHERE e.user_id = $1
-     ORDER BY e.created_at DESC`,
+    `SELECT ewt.*, p.nom as project_nom, ewt.methode_paiement as mode_paiement
+     FROM expenses_with_totals ewt
+     LEFT JOIN projects p ON ewt.project_id = p.id
+     WHERE ewt.user_id = $1
+     ORDER BY ewt.created_at DESC`,
     [req.user!.userId]
   );
 
@@ -56,11 +56,11 @@ router.get('/project/:projectId', asyncHandler(async (req: Request, res: Respons
   }
 
   const result = await query(
-    `SELECT e.*, p.nom as project_nom, e.methode_paiement as mode_paiement
-     FROM expenses e
-     LEFT JOIN projects p ON e.project_id = p.id
-     WHERE e.project_id = $1 AND e.user_id = $2
-     ORDER BY e.created_at DESC`,
+    `SELECT ewt.*, p.nom as project_nom, ewt.methode_paiement as mode_paiement
+     FROM expenses_with_totals ewt
+     LEFT JOIN projects p ON ewt.project_id = p.id
+     WHERE ewt.project_id = $1 AND ewt.user_id = $2
+     ORDER BY ewt.created_at DESC`,
     [projectId, req.user!.userId]
   );
 
@@ -540,6 +540,291 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   };
 
   res.status(201).json(response);
+}));
+
+// Créer une dépense simple (sans montant initial)
+router.post('/create-simple', asyncHandler(async (req: Request, res: Response) => {
+  const validatedData = validate(createSimpleExpenseSchema, req.body);
+
+  // Vérifier que le projet appartient à l'utilisateur
+  const projectCheck = await query(
+    'SELECT id FROM projects WHERE id = $1 AND user_id = $2',
+    [validatedData.project_id, req.user!.userId]
+  );
+
+  if (projectCheck.rows.length === 0) {
+    throw createError('Projet non trouvé', 404);
+  }
+
+  const result = await query(
+    `INSERT INTO expenses (
+       project_id, user_id, nom, description, statut,
+       montant_declare, montant_non_declare, montant_total,
+       methode_paiement
+     )
+     VALUES ($1, $2, $3, $4, 'actif', 0, 0, 0, 'espece')
+     RETURNING *`,
+    [
+      validatedData.project_id,
+      req.user!.userId,
+      validatedData.nom,
+      validatedData.description || ''
+    ]
+  );
+
+  const response: ApiResponse = {
+    success: true,
+    data: result.rows[0],
+    message: 'Dépense créée avec succès'
+  };
+
+  res.status(201).json(response);
+}));
+
+// Récupérer une dépense avec ses paiements
+router.get('/:id/with-payments', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  // Vérifier que la dépense appartient à l'utilisateur
+  const expenseCheck = await query(
+    'SELECT * FROM expenses WHERE id = $1 AND user_id = $2',
+    [id, req.user!.userId]
+  );
+
+  if (expenseCheck.rows.length === 0) {
+    throw createError('Dépense non trouvée', 404);
+  }
+
+  // Récupérer la dépense avec les totaux calculés
+  const expenseResult = await query(
+    `SELECT * FROM expenses_with_totals WHERE id = $1`,
+    [id]
+  );
+
+  // Récupérer les paiements
+  const paymentsResult = await query(
+    `SELECT * FROM expense_payments
+     WHERE expense_id = $1
+     ORDER BY date_paiement DESC, created_at DESC`,
+    [id]
+  );
+
+  const expenseWithPayments = {
+    ...expenseResult.rows[0],
+    payments: paymentsResult.rows
+  };
+
+  const response: ApiResponse = {
+    success: true,
+    data: expenseWithPayments
+  };
+
+  res.json(response);
+}));
+
+// Ajouter un paiement à une dépense
+router.post('/:id/payments', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const validatedData = validate(createExpensePaymentSchema, req.body);
+
+  // Vérifier que la dépense appartient à l'utilisateur
+  const expenseCheck = await query(
+    'SELECT id, statut FROM expenses WHERE id = $1 AND user_id = $2',
+    [id, req.user!.userId]
+  );
+
+  if (expenseCheck.rows.length === 0) {
+    throw createError('Dépense non trouvée', 404);
+  }
+
+  const expense = expenseCheck.rows[0];
+
+  // Vérifier que la dépense est active
+  if (expense.statut === 'annule') {
+    throw createError('Impossible d\'ajouter un paiement à une dépense annulée', 400);
+  }
+
+  // Créer le paiement
+  const result = await query(
+    `INSERT INTO expense_payments (
+       expense_id, user_id, montant_paye, montant_declare, montant_non_declare,
+       date_paiement, mode_paiement, description, reference_paiement
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING *`,
+    [
+      id,
+      req.user!.userId,
+      validatedData.montant_paye,
+      validatedData.montant_declare,
+      validatedData.montant_non_declare,
+      validatedData.date_paiement,
+      validatedData.mode_paiement,
+      validatedData.description || '',
+      validatedData.reference_paiement || null
+    ]
+  );
+
+  const response: ApiResponse = {
+    success: true,
+    data: result.rows[0],
+    message: 'Paiement ajouté avec succès'
+  };
+
+  res.status(201).json(response);
+}));
+
+// Récupérer les paiements d'une dépense
+router.get('/:id/payments', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  // Vérifier que la dépense appartient à l'utilisateur
+  const expenseCheck = await query(
+    'SELECT id FROM expenses WHERE id = $1 AND user_id = $2',
+    [id, req.user!.userId]
+  );
+
+  if (expenseCheck.rows.length === 0) {
+    throw createError('Dépense non trouvée', 404);
+  }
+
+  const result = await query(
+    `SELECT * FROM expense_payments
+     WHERE expense_id = $1
+     ORDER BY date_paiement DESC, created_at DESC`,
+    [id]
+  );
+
+  const response: ApiResponse = {
+    success: true,
+    data: result.rows
+  };
+
+  res.json(response);
+}));
+
+// Modifier un paiement de dépense
+router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Response) => {
+  const { paymentId } = req.params;
+  const validatedData = validate(createExpensePaymentSchema, req.body);
+
+  // Vérifier que le paiement appartient à l'utilisateur
+  const paymentCheck = await query(
+    `SELECT ep.*, e.statut as expense_statut
+     FROM expense_payments ep
+     JOIN expenses e ON ep.expense_id = e.id
+     WHERE ep.id = $1 AND ep.user_id = $2`,
+    [paymentId, req.user!.userId]
+  );
+
+  if (paymentCheck.rows.length === 0) {
+    throw createError('Paiement non trouvé', 404);
+  }
+
+  const payment = paymentCheck.rows[0];
+
+  // Vérifier que la dépense n'est pas annulée
+  if (payment.expense_statut === 'annule') {
+    throw createError('Impossible de modifier un paiement d\'une dépense annulée', 400);
+  }
+
+  // Mettre à jour le paiement
+  const result = await query(
+    `UPDATE expense_payments
+     SET montant_paye = $1, montant_declare = $2, montant_non_declare = $3,
+         date_paiement = $4, mode_paiement = $5, description = $6,
+         reference_paiement = $7, updated_at = NOW()
+     WHERE id = $8
+     RETURNING *`,
+    [
+      validatedData.montant_paye,
+      validatedData.montant_declare,
+      validatedData.montant_non_declare,
+      validatedData.date_paiement,
+      validatedData.mode_paiement,
+      validatedData.description || '',
+      validatedData.reference_paiement || null,
+      paymentId
+    ]
+  );
+
+  const response: ApiResponse = {
+    success: true,
+    data: result.rows[0],
+    message: 'Paiement modifié avec succès'
+  };
+
+  res.json(response);
+}));
+
+// Supprimer un paiement de dépense
+router.delete('/payments/:paymentId', asyncHandler(async (req: Request, res: Response) => {
+  const { paymentId } = req.params;
+
+  // Vérifier que le paiement appartient à l'utilisateur
+  const paymentCheck = await query(
+    `SELECT ep.*, e.statut as expense_statut
+     FROM expense_payments ep
+     JOIN expenses e ON ep.expense_id = e.id
+     WHERE ep.id = $1 AND ep.user_id = $2`,
+    [paymentId, req.user!.userId]
+  );
+
+  if (paymentCheck.rows.length === 0) {
+    throw createError('Paiement non trouvé', 404);
+  }
+
+  const payment = paymentCheck.rows[0];
+
+  // Vérifier que la dépense n'est pas annulée
+  if (payment.expense_statut === 'annule') {
+    throw createError('Impossible de supprimer un paiement d\'une dépense annulée', 400);
+  }
+
+  // Supprimer le paiement
+  await query('DELETE FROM expense_payments WHERE id = $1', [paymentId]);
+
+  const response: ApiResponse = {
+    success: true,
+    message: 'Paiement supprimé avec succès'
+  };
+
+  res.json(response);
+}));
+
+// Changer le statut d'une dépense
+router.patch('/:id/status', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { statut } = req.body;
+
+  // Valider le statut
+  if (!['actif', 'termine', 'annule'].includes(statut)) {
+    throw createError('Statut invalide', 400);
+  }
+
+  // Vérifier que la dépense appartient à l'utilisateur
+  const expenseCheck = await query(
+    'SELECT id FROM expenses WHERE id = $1 AND user_id = $2',
+    [id, req.user!.userId]
+  );
+
+  if (expenseCheck.rows.length === 0) {
+    throw createError('Dépense non trouvée', 404);
+  }
+
+  // Mettre à jour le statut
+  const result = await query(
+    'UPDATE expenses SET statut = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+    [statut, id]
+  );
+
+  const response: ApiResponse = {
+    success: true,
+    data: result.rows[0],
+    message: `Dépense marquée comme ${statut}`
+  };
+
+  res.json(response);
 }));
 
 // Mettre à jour une dépense

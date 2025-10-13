@@ -16,6 +16,7 @@ export interface CheckData {
 }
 
 export type PaymentMode = 'espece' | 'cheque' | 'cheque_espece' | 'virement';
+export type ExpenseStatus = 'actif' | 'termine' | 'annule';
 
 export interface Expense {
   id: string;
@@ -27,16 +28,48 @@ export interface Expense {
   montant_espece: number;
   mode_paiement: PaymentMode;
   description: string;
+  statut: ExpenseStatus;
   created_at: string;
   project_id: string;
   user_id: string;
   projects: { nom: string };
   cheques?: CheckData[];
-  // Nouveaux champs pour les paiements par tranches
+  // Nouveaux champs pour les paiements progressifs
   statut_paiement?: 'non_paye' | 'partiellement_paye' | 'paye';
   montant_total_paye?: number;
   montant_restant?: number;
   expense_payment_plans?: ExpensePaymentPlan[];
+  // Nouveaux champs calculés
+  total_paye_calcule?: number;
+  total_declare_calcule?: number;
+  total_non_declare_calcule?: number;
+  nombre_paiements?: number;
+  payments?: ExpensePayment[];
+}
+
+// Nouveau type pour les paiements individuels de dépenses
+export interface ExpensePayment {
+  id: string;
+  expense_id: string;
+  user_id: string;
+  montant_paye: number;
+  montant_declare: number;
+  montant_non_declare: number;
+  date_paiement: string;
+  mode_paiement: PaymentMode;
+  description?: string;
+  reference_paiement?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Dépense avec ses paiements
+export interface ExpenseWithPayments extends Expense {
+  payments: ExpensePayment[];
+  total_paye_calcule: number;
+  total_declare_calcule: number;
+  total_non_declare_calcule: number;
+  nombre_paiements: number;
 }
 
 export interface ExpensePaymentPlan {
@@ -84,6 +117,26 @@ export interface ExpenseFormData {
   cheques: CheckData[];
 }
 
+// Nouveau formulaire simplifié pour créer une dépense sans montant
+export interface SimpleExpenseFormData {
+  project_id: string;
+  nom: string;
+  description: string;
+}
+
+// Formulaire pour ajouter un paiement à une dépense
+export interface ExpensePaymentFormData {
+  montant_paye: number;
+  montant_declare: number;
+  montant_non_declare: number;
+  date_paiement: string;
+  mode_paiement: PaymentMode;
+  description?: string;
+  reference_paiement?: string;
+  // Pour les chèques
+  cheques?: CheckData[];
+}
+
 export const PAYMENT_MODES = {
   espece: 'Espèces',
   cheque: 'Chèque',
@@ -95,4 +148,10 @@ export const CHECK_STATUS = {
   emis: 'Émis',
   encaisse: 'Encaissé',
   annule: 'Annulé'
+} as const;
+
+export const EXPENSE_STATUS = {
+  actif: 'Active',
+  termine: 'Terminée',
+  annule: 'Annulée'
 } as const;

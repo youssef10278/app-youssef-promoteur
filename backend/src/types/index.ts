@@ -108,6 +108,7 @@ export interface PaymentPlan {
 
 // Types pour les dépenses
 export type ExpensePaymentMethod = 'cheque' | 'espece' | 'cheque_et_espece';
+export type ExpenseStatus = 'actif' | 'termine' | 'annule';
 
 export interface Expense {
   id: string;
@@ -119,8 +120,52 @@ export interface Expense {
   montant_total: number;
   methode_paiement: ExpensePaymentMethod;
   description?: string;
+  statut: ExpenseStatus;
   created_at: Date;
   updated_at: Date;
+}
+
+// Nouveau type pour les paiements de dépenses
+export interface ExpensePayment {
+  id: string;
+  expense_id: string;
+  user_id: string;
+  montant_paye: number;
+  montant_declare: number;
+  montant_non_declare: number;
+  date_paiement: string;
+  mode_paiement: 'espece' | 'cheque' | 'cheque_espece' | 'virement';
+  description?: string;
+  reference_paiement?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// Dépense avec ses paiements et totaux calculés
+export interface ExpenseWithPayments extends Expense {
+  payments: ExpensePayment[];
+  total_paye_calcule: number;
+  total_declare_calcule: number;
+  total_non_declare_calcule: number;
+  nombre_paiements: number;
+}
+
+// Types pour les formulaires
+export interface CreateSimpleExpenseData {
+  project_id: string;
+  nom: string;
+  description?: string;
+}
+
+export interface CreateExpensePaymentData {
+  expense_id: string;
+  montant_paye: number;
+  montant_declare: number;
+  montant_non_declare: number;
+  date_paiement: string;
+  mode_paiement: 'espece' | 'cheque' | 'cheque_espece' | 'virement';
+  description?: string;
+  reference_paiement?: string;
 }
 
 // Types pour les chèques
