@@ -149,7 +149,7 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
     setIsLoading(true);
 
     try {
-      const response = await apiClient.post(`/api/expenses/${expense.id}/payments`, formData);
+      const response = await apiClient.post(`/expenses/${expense.id}/payments`, formData);
 
       if (response.success) {
         toast({

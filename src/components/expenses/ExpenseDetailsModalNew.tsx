@@ -57,7 +57,7 @@ const ExpenseDetailsModalNew: React.FC<ExpenseDetailsModalNewProps> = ({
   const loadExpenseDetails = async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get(`/api/expenses/${expense.id}/with-payments`);
+      const response = await apiClient.get(`/expenses/${expense.id}/with-payments`);
       if (response.success && response.data) {
         setExpense(response.data);
       }
@@ -84,7 +84,7 @@ const ExpenseDetailsModalNew: React.FC<ExpenseDetailsModalNewProps> = ({
     }
 
     try {
-      const response = await apiClient.delete(`/api/expenses/payments/${paymentId}`);
+      const response = await apiClient.delete(`/expenses/payments/${paymentId}`);
       if (response.success) {
         toast({
           title: "Paiement supprimé",

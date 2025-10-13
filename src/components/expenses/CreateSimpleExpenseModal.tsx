@@ -103,7 +103,7 @@ const CreateSimpleExpenseModal: React.FC<CreateSimpleExpenseModalProps> = ({
     setIsLoading(true);
 
     try {
-      const response = await apiClient.post('/api/expenses/create-simple', formData);
+      const response = await apiClient.post('/expenses/create-simple', formData);
 
       if (response.success) {
         toast({
