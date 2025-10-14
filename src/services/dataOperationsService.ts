@@ -45,18 +45,26 @@ export class DataOperationsService {
    */
   static async validateImport(file: File, dataType: DataType): Promise<ValidationResponse> {
     try {
+      console.log('🔍 validateImport appelé avec:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        dataType
+      });
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('data_type', dataType);
 
-      const response = await apiClient.post('/data/import/validate', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      console.log('📤 FormData créé, envoi de la requête...');
+
+      // Ne pas spécifier Content-Type avec FormData - axios le fait automatiquement
+      const response = await apiClient.post('/data/import/validate', formData);
+
+      console.log('✅ Réponse validation:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Erreur lors de la validation:', error);
+      console.error('❌ Erreur lors de la validation:', error);
       throw error;
     }
   }
@@ -81,11 +89,8 @@ export class DataOperationsService {
       formData.append('duplicate_strategy', duplicateStrategy);
 
       console.log('📤 Envoi de la requête import global...');
-      const response = await apiClient.post('/data/import/global', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // Ne pas spécifier Content-Type avec FormData - axios le fait automatiquement
+      const response = await apiClient.post('/data/import/global', formData);
 
       console.log('✅ Réponse import global:', response.data);
       return response.data;
@@ -109,11 +114,8 @@ export class DataOperationsService {
       formData.append('data_type', dataType);
       formData.append('duplicate_strategy', duplicateStrategy);
 
-      const response = await apiClient.post('/data/import/selective', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // Ne pas spécifier Content-Type avec FormData - axios le fait automatiquement
+      const response = await apiClient.post('/data/import/selective', formData);
       return response.data;
     } catch (error) {
       console.error('Erreur lors de l\'import sélectif:', error);
