@@ -152,8 +152,8 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
       errors.push('Le montant non déclaré ne peut pas être négatif');
     }
 
-    const totalCalcule = formData.montant_declare + formData.montant_non_declare;
-    if (Math.abs(totalCalcule - formData.montant_paye) > 0.01) {
+    const totalCalcule = Number(formData.montant_declare) + Number(formData.montant_non_declare);
+    if (Math.abs(totalCalcule - Number(formData.montant_paye)) > 0.01) {
       errors.push('Le montant payé doit être égal à la somme des montants déclaré et non déclaré');
     }
 
@@ -417,11 +417,11 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
                   <div className="flex justify-between items-center text-sm">
                     <span>Vérification:</span>
                     <span className={
-                      Math.abs((formData.montant_declare + formData.montant_non_declare) - formData.montant_paye) < 0.01
+                      Math.abs((Number(formData.montant_declare) + Number(formData.montant_non_declare)) - Number(formData.montant_paye)) < 0.01
                         ? "text-green-600 font-medium"
                         : "text-red-600 font-medium"
                     }>
-                      {formatAmount(formData.montant_declare + formData.montant_non_declare)} / {formatAmount(formData.montant_paye)}
+                      {formatAmount(Number(formData.montant_declare) + Number(formData.montant_non_declare))} / {formatAmount(Number(formData.montant_paye))}
                     </span>
                   </div>
                 </div>
