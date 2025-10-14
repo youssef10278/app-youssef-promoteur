@@ -196,6 +196,20 @@ export const salesFiltersSchema = Joi.object({
   montant_max: Joi.number().min(0).optional()
 });
 
+// Schéma de validation pour les filtres des dépenses
+export const expenseFiltersSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(20),
+  sortBy: Joi.string().valid('created_at', 'nom', 'montant_total', 'montant_declare', 'montant_non_declare').default('created_at'),
+  sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
+  search: Joi.string().max(200).optional(),
+  mode_paiement: Joi.string().valid('espece', 'cheque', 'cheque_espece', 'virement').optional(),
+  date_debut: Joi.date().optional(),
+  date_fin: Joi.date().optional(),
+  montant_min: Joi.number().min(0).optional(),
+  montant_max: Joi.number().min(0).optional()
+});
+
 // Fonction utilitaire pour valider les données
 export const validate = (schema: Joi.ObjectSchema, data: any) => {
   const { error, value } = schema.validate(data, { abortEarly: false });

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { query } from '../config/database';
-import { validate, createExpenseSchema, createSimpleExpenseSchema, createExpensePaymentSchema } from '../utils/validation';
+import { validate, createExpenseSchema, createSimpleExpenseSchema, createExpensePaymentSchema, expenseFiltersSchema } from '../utils/validation';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import { ApiResponse, Expense } from '../types';
@@ -10,28 +10,88 @@ const router = Router();
 // Toutes les routes nécessitent une authentification
 router.use(authenticateToken);
 
-// Obtenir toutes les dépenses de l'utilisateur
+// Obtenir toutes les dépenses de l'utilisateur avec filtres
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
-  console.log('🔍 GET / - userId:', req.user!.userId);
+  console.log('🔍 GET / - userId:', req.user!.userId, 'query:', req.query);
+
+  // Valider les filtres
+  const filters = validate(expenseFiltersSchema, req.query);
+
+  // Construction de la requête WHERE
+  const whereConditions = ['ewt.user_id = $1'];
+  const queryParams = [req.user!.userId];
+  let paramIndex = 2;
+
+  // Recherche textuelle (nom, description, projet, numéros de chèques)
+  if (filters.search) {
+    whereConditions.push(`(
+      ewt.nom ILIKE $${paramIndex} OR
+      ewt.description ILIKE $${paramIndex} OR
+      p.nom ILIKE $${paramIndex} OR
+      EXISTS (
+        SELECT 1 FROM checks c
+        WHERE c.expense_id = ewt.id
+        AND c.numero_cheque ILIKE $${paramIndex}
+      )
+    )`);
+    queryParams.push(`%${filters.search}%`);
+    paramIndex++;
+  }
+
+  // Filtres par mode de paiement
+  if (filters.mode_paiement) {
+    whereConditions.push(`ewt.methode_paiement = $${paramIndex}`);
+    queryParams.push(filters.mode_paiement);
+    paramIndex++;
+  }
+
+  // Filtres par date
+  if (filters.date_debut) {
+    whereConditions.push(`ewt.created_at >= $${paramIndex}`);
+    queryParams.push(filters.date_debut);
+    paramIndex++;
+  }
+
+  if (filters.date_fin) {
+    whereConditions.push(`ewt.created_at <= $${paramIndex}`);
+    queryParams.push(filters.date_fin);
+    paramIndex++;
+  }
+
+  // Filtres par montant
+  if (filters.montant_min !== undefined) {
+    whereConditions.push(`(ewt.montant_declare + ewt.montant_non_declare) >= $${paramIndex}`);
+    queryParams.push(filters.montant_min);
+    paramIndex++;
+  }
+
+  if (filters.montant_max !== undefined) {
+    whereConditions.push(`(ewt.montant_declare + ewt.montant_non_declare) <= $${paramIndex}`);
+    queryParams.push(filters.montant_max);
+    paramIndex++;
+  }
+
+  const whereClause = whereConditions.join(' AND ');
+
+  // Construction de l'ORDER BY
+  let orderBy = 'ewt.created_at DESC';
+  if (filters.sortBy && filters.sortOrder) {
+    const sortColumn = filters.sortBy === 'montant_total'
+      ? '(ewt.montant_declare + ewt.montant_non_declare)'
+      : `ewt.${filters.sortBy}`;
+    orderBy = `${sortColumn} ${filters.sortOrder.toUpperCase()}`;
+  }
 
   const result = await query(
     `SELECT ewt.*, p.nom as project_nom, ewt.methode_paiement as mode_paiement
      FROM expenses_with_totals ewt
      LEFT JOIN projects p ON ewt.project_id = p.id
-     WHERE ewt.user_id = $1
-     ORDER BY ewt.created_at DESC`,
-    [req.user!.userId]
+     WHERE ${whereClause}
+     ORDER BY ${orderBy}`,
+    queryParams
   );
 
-  console.log('🔍 Dépenses récupérées:', result.rows.length);
-  if (result.rows.length > 0) {
-    console.log('🔍 Première dépense:', {
-      id: result.rows[0].id,
-      nom: result.rows[0].nom,
-      project_id: result.rows[0].project_id,
-      project_nom: result.rows[0].project_nom
-    });
-  }
+  console.log('🔍 Dépenses récupérées:', result.rows.length, 'avec filtres:', filters);
 
   const response: ApiResponse = {
     success: true,
@@ -41,9 +101,10 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   res.json(response);
 }));
 
-// Obtenir les dépenses d'un projet spécifique
+// Obtenir les dépenses d'un projet spécifique avec filtres
 router.get('/project/:projectId', asyncHandler(async (req: Request, res: Response) => {
   const { projectId } = req.params;
+  console.log('🔍 GET /project/:projectId - projectId:', projectId, 'query:', req.query);
 
   // Vérifier que le projet appartient à l'utilisateur
   const projectCheck = await query(
@@ -55,14 +116,84 @@ router.get('/project/:projectId', asyncHandler(async (req: Request, res: Respons
     throw createError('Projet non trouvé', 404);
   }
 
+  // Valider les filtres
+  const filters = validate(expenseFiltersSchema, req.query);
+
+  // Construction de la requête WHERE
+  const whereConditions = ['ewt.project_id = $1', 'ewt.user_id = $2'];
+  const queryParams = [projectId, req.user!.userId];
+  let paramIndex = 3;
+
+  // Recherche textuelle (nom, description, projet, numéros de chèques)
+  if (filters.search) {
+    whereConditions.push(`(
+      ewt.nom ILIKE $${paramIndex} OR
+      ewt.description ILIKE $${paramIndex} OR
+      p.nom ILIKE $${paramIndex} OR
+      EXISTS (
+        SELECT 1 FROM checks c
+        WHERE c.expense_id = ewt.id
+        AND c.numero_cheque ILIKE $${paramIndex}
+      )
+    )`);
+    queryParams.push(`%${filters.search}%`);
+    paramIndex++;
+  }
+
+  // Filtres par mode de paiement
+  if (filters.mode_paiement) {
+    whereConditions.push(`ewt.methode_paiement = $${paramIndex}`);
+    queryParams.push(filters.mode_paiement);
+    paramIndex++;
+  }
+
+  // Filtres par date
+  if (filters.date_debut) {
+    whereConditions.push(`ewt.created_at >= $${paramIndex}`);
+    queryParams.push(filters.date_debut);
+    paramIndex++;
+  }
+
+  if (filters.date_fin) {
+    whereConditions.push(`ewt.created_at <= $${paramIndex}`);
+    queryParams.push(filters.date_fin);
+    paramIndex++;
+  }
+
+  // Filtres par montant
+  if (filters.montant_min !== undefined) {
+    whereConditions.push(`(ewt.montant_declare + ewt.montant_non_declare) >= $${paramIndex}`);
+    queryParams.push(filters.montant_min);
+    paramIndex++;
+  }
+
+  if (filters.montant_max !== undefined) {
+    whereConditions.push(`(ewt.montant_declare + ewt.montant_non_declare) <= $${paramIndex}`);
+    queryParams.push(filters.montant_max);
+    paramIndex++;
+  }
+
+  const whereClause = whereConditions.join(' AND ');
+
+  // Construction de l'ORDER BY
+  let orderBy = 'ewt.created_at DESC';
+  if (filters.sortBy && filters.sortOrder) {
+    const sortColumn = filters.sortBy === 'montant_total'
+      ? '(ewt.montant_declare + ewt.montant_non_declare)'
+      : `ewt.${filters.sortBy}`;
+    orderBy = `${sortColumn} ${filters.sortOrder.toUpperCase()}`;
+  }
+
   const result = await query(
     `SELECT ewt.*, p.nom as project_nom, ewt.methode_paiement as mode_paiement
      FROM expenses_with_totals ewt
      LEFT JOIN projects p ON ewt.project_id = p.id
-     WHERE ewt.project_id = $1 AND ewt.user_id = $2
-     ORDER BY ewt.created_at DESC`,
-    [projectId, req.user!.userId]
+     WHERE ${whereClause}
+     ORDER BY ${orderBy}`,
+    queryParams
   );
+
+  console.log('🔍 Dépenses du projet récupérées:', result.rows.length, 'avec filtres:', filters);
 
   const response: ApiResponse = {
     success: true,
