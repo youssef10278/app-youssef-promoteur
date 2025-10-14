@@ -20,7 +20,7 @@ import paymentRoutes from './routes/payments';
 import expensePaymentRoutes from './routes/expensePayments';
 import migrateRoutes from './routes/migrate';
 import companySettingsRoutes from './routes/companySettings';
-import dataOperationsRoutes from './routes/data-operations';
+import dataOperationsRoutes from './routes/dataOperations';
 
 dotenv.config();
 
