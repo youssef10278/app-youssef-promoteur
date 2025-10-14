@@ -376,10 +376,10 @@ export function AddExpensePaymentModal({ expense, isOpen, onClose, onSuccess }: 
                 </div>
               )}
 
-              {/* Répartition déclaré/non déclaré */}
+              {/* Répartition montant principal/autre montant */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="montant_declare">Montant déclaré</Label>
+                  <Label htmlFor="montant_declare">Montant principal</Label>
                   <Input
                     id="montant_declare"
                     type="number"
@@ -388,11 +388,11 @@ export function AddExpensePaymentModal({ expense, isOpen, onClose, onSuccess }: 
                     max={formData.montant_paye}
                     value={formData.montant_declare}
                     onChange={(e) => handleInputChange('montant_declare', parseFloat(e.target.value) || 0)}
-                    placeholder="Montant déclaré"
+                    placeholder="Montant principal"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="montant_non_declare">Montant non déclaré</Label>
+                  <Label htmlFor="montant_non_declare">Autre montant</Label>
                   <Input
                     id="montant_non_declare"
                     type="number"
@@ -401,7 +401,7 @@ export function AddExpensePaymentModal({ expense, isOpen, onClose, onSuccess }: 
                     max={formData.montant_paye}
                     value={formData.montant_non_declare}
                     onChange={(e) => handleInputChange('montant_non_declare', parseFloat(e.target.value) || 0)}
-                    placeholder="Montant non déclaré"
+                    placeholder="Autre montant"
                   />
                 </div>
               </div>

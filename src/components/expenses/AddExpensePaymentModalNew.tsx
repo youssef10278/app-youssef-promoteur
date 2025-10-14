@@ -154,11 +154,11 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
     }
 
     if (formData.montant_declare < 0) {
-      errors.push('Le montant déclaré ne peut pas être négatif');
+      errors.push('Le montant principal ne peut pas être négatif');
     }
 
     if (formData.montant_non_declare < 0) {
-      errors.push('Le montant non déclaré ne peut pas être négatif');
+      errors.push('L\'autre montant ne peut pas être négatif');
     }
 
     // Validation selon le mode de paiement
@@ -181,7 +181,7 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
       // Pour autres modes: vérifier montant_paye = montant_declare + montant_non_declare
       const totalCalcule = Number(formData.montant_declare) + Number(formData.montant_non_declare);
       if (Math.abs(totalCalcule - Number(formData.montant_paye)) > 0.01) {
-        errors.push('Le montant payé doit être égal à la somme des montants déclaré et non déclaré');
+        errors.push('Le montant payé doit être égal à la somme du montant principal et de l\'autre montant');
       }
     }
 
@@ -456,10 +456,10 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
                 />
               </div>
 
-              {/* Répartition déclaré/non déclaré */}
+              {/* Répartition montant principal/autre montant */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="montant_declare">Montant déclaré (DH)</Label>
+                  <Label htmlFor="montant_declare">Montant principal (DH)</Label>
                   <Input
                     id="montant_declare"
                     type="number"
@@ -472,15 +472,15 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="montant_non_declare">Montant non déclaré (DH)</Label>
+                  <Label htmlFor="montant_non_declare">Autre montant (DH)</Label>
                   <Input
                     id="montant_non_declare"
                     type="number"
                     step="0.01"
                     min="0"
                     value={formData.montant_non_declare || ''}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
                       montant_non_declare: parseFloat(e.target.value) || 0,
                       montant_declare: Math.max(0, prev.montant_paye - (parseFloat(e.target.value) || 0))
                     }))}
