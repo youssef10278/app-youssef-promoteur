@@ -3,7 +3,6 @@ import { query } from '../config/database';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import { ApiResponse } from '../types';
-import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs/promises';
@@ -11,22 +10,56 @@ import os from 'os';
 
 const router = Router();
 
-// Configuration multer pour upload de fichiers
-const upload = multer({
-  dest: os.tmpdir(), // Utiliser le dossier temporaire du système
-  limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB max
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['.json', '.csv'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowedTypes.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Type de fichier non supporté. Utilisez JSON ou CSV.'));
-    }
+// Middleware pour parser les données multipart/form-data
+const parseMultipartData = (req: any, res: any, next: any) => {
+  const contentType = req.headers['content-type'];
+
+  if (!contentType || !contentType.includes('multipart/form-data')) {
+    return next();
   }
-});
+
+  let body = '';
+  req.on('data', (chunk: any) => {
+    body += chunk.toString();
+  });
+
+  req.on('end', () => {
+    try {
+      // Parse simple pour récupérer les données
+      const boundary = contentType.split('boundary=')[1];
+      if (boundary) {
+        const parts = body.split(`--${boundary}`);
+
+        for (const part of parts) {
+          if (part.includes('Content-Disposition: form-data; name="data_type"')) {
+            const match = part.match(/\r\n\r\n(.+?)\r\n/);
+            if (match) {
+              req.body = req.body || {};
+              req.body.data_type = match[1].trim();
+            }
+          }
+
+          if (part.includes('Content-Disposition: form-data; name="file"')) {
+            const filenameMatch = part.match(/filename="(.+?)"/);
+            const contentMatch = part.match(/\r\n\r\n([\s\S]+?)\r\n--/);
+
+            if (filenameMatch && contentMatch) {
+              req.file = {
+                originalname: filenameMatch[1],
+                buffer: Buffer.from(contentMatch[1], 'binary'),
+                size: contentMatch[1].length
+              };
+            }
+          }
+        }
+      }
+      next();
+    } catch (error) {
+      console.error('Erreur parsing multipart:', error);
+      next();
+    }
+  });
+};
 
 // Toutes les routes nécessitent une authentification
 router.use(authenticateToken);
@@ -35,7 +68,7 @@ router.use(authenticateToken);
 console.log('🔧 Routes data-operations chargées et configurées');
 
 // Route de test pour diagnostiquer les uploads
-router.post('/test-upload', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/test-upload', parseMultipartData, asyncHandler(async (req: Request, res: Response) => {
   console.log('🧪 Route test-upload appelée:', {
     hasFile: !!req.file,
     fileName: req.file?.originalname,
@@ -294,7 +327,7 @@ router.get('/operations', asyncHandler(async (req: Request, res: Response) => {
 // ==================== IMPORT ====================
 
 // Valider un fichier d'import
-router.post('/import/validate', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/import/validate', parseMultipartData, asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.userId;
   const { data_type } = req.body;
 
@@ -313,7 +346,7 @@ router.post('/import/validate', upload.single('file'), asyncHandler(async (req: 
   console.log('🔍 Validation import:', data_type, 'Fichier:', req.file.originalname);
 
   try {
-    const fileContent = await fs.readFile(req.file.path, 'utf-8');
+    const fileContent = req.file.buffer.toString('utf-8');
     let data: any[];
 
     // Parser selon le format
@@ -347,8 +380,7 @@ router.post('/import/validate', upload.single('file'), asyncHandler(async (req: 
       }
     }
 
-    // Nettoyer le fichier temporaire
-    await fs.unlink(req.file.path);
+    // Pas besoin de nettoyer - fichier en mémoire
 
     const response: ApiResponse = {
       success: true,
@@ -365,13 +397,13 @@ router.post('/import/validate', upload.single('file'), asyncHandler(async (req: 
     res.json(response);
   } catch (error) {
     console.error('❌ Erreur validation:', error);
-    await fs.unlink(req.file.path).catch(() => {}); // Nettoyer en cas d'erreur
+    // Pas besoin de nettoyer - fichier en mémoire
     throw createError('Erreur lors de la validation du fichier', 500);
   }
 }));
 
 // Import global
-router.post('/import/global', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/import/global', parseMultipartData, asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.userId;
   const { duplicate_strategy = 'ignore' } = req.body;
 
@@ -382,7 +414,7 @@ router.post('/import/global', upload.single('file'), asyncHandler(async (req: Re
   console.log('🔍 Import global:', req.file.originalname, 'Stratégie:', duplicate_strategy);
 
   try {
-    const fileContent = await fs.readFile(req.file.path, 'utf-8');
+    const fileContent = req.file.buffer.toString('utf-8');
     const importData = JSON.parse(fileContent);
 
     if (!importData.data) {
@@ -406,15 +438,14 @@ router.post('/import/global', upload.single('file'), asyncHandler(async (req: Re
     }
 
     // Enregistrer l'opération
-    const stats = await fs.stat(req.file.path);
+    const fileSize = req.file.size;
     await query(
       `INSERT INTO data_operations (user_id, operation_type, data_type, file_name, file_size, records_count)
        VALUES ($1, 'import', 'global', $2, $3, $4)`,
-      [userId, req.file.originalname, stats.size, totalImported]
+      [userId, req.file.originalname, fileSize, totalImported]
     );
 
-    // Nettoyer le fichier
-    await fs.unlink(req.file.path);
+    // Pas besoin de nettoyer - fichier en mémoire
 
     console.log('✅ Import global terminé:', totalImported, 'importés');
 
@@ -430,7 +461,7 @@ router.post('/import/global', upload.single('file'), asyncHandler(async (req: Re
     res.json(response);
   } catch (error) {
     console.error('❌ Erreur import global:', error);
-    await fs.unlink(req.file.path).catch(() => {});
+    // Pas besoin de nettoyer - fichier en mémoire
     throw createError('Erreur lors de l\'import global', 500);
   }
 }));
