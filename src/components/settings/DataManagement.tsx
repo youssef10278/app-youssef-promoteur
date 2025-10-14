@@ -86,9 +86,18 @@ export const DataManagement: React.FC = () => {
     setIsLoadingHistory(true);
     try {
       const result = await DataOperationsService.getOperations(1, 10);
-      setOperations(result.operations);
+      console.log('📋 Résultat getOperations:', result);
+
+      if (result && result.operations) {
+        setOperations(result.operations);
+        console.log('✅ Opérations chargées:', result.operations.length);
+      } else {
+        console.warn('⚠️ Aucune opération trouvée');
+        setOperations([]);
+      }
     } catch (error) {
-      console.error('Erreur chargement historique:', error);
+      console.error('❌ Erreur chargement historique:', error);
+      setOperations([]);
     } finally {
       setIsLoadingHistory(false);
     }

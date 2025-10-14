@@ -247,6 +247,61 @@ router.get('/operations', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // ==========================================
+// TEST ET DEBUG
+// ==========================================
+
+router.get('/test-db', asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).user.userId;
+
+  console.log('🧪 Test de la base de données pour userId:', userId);
+
+  try {
+    // Vérifier si la table existe
+    const tableExists = await query(`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_name = 'data_operations'
+      ) as exists
+    `);
+
+    // Compter les opérations pour cet utilisateur
+    const userOperations = await query(
+      'SELECT COUNT(*) as count FROM data_operations WHERE user_id = $1',
+      [userId]
+    );
+
+    // Compter toutes les opérations
+    const allOperations = await query('SELECT COUNT(*) as count FROM data_operations');
+
+    // Récupérer quelques exemples
+    const sampleOperations = await query(
+      'SELECT * FROM data_operations ORDER BY created_at DESC LIMIT 3'
+    );
+
+    const response: ApiResponse = {
+      success: true,
+      data: {
+        table_exists: tableExists.rows[0].exists,
+        user_operations_count: Number(userOperations.rows[0].count),
+        total_operations_count: Number(allOperations.rows[0].count),
+        sample_operations: sampleOperations.rows,
+        user_id: userId
+      },
+      message: 'Test de la base de données terminé'
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('❌ Erreur test DB:', error);
+    res.status(500).json({
+      success: false,
+      message: `Erreur test DB: ${(error as Error).message}`,
+      data: { user_id: userId }
+    });
+  }
+}));
+
+// ==========================================
 // STATISTIQUES
 // ==========================================
 

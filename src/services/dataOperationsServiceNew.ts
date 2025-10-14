@@ -212,12 +212,53 @@ export class DataOperationsService {
       const response = await apiClient.get('/data/operations', {
         params: { page, limit }
       });
-      
-      console.log('✅ Historique récupéré:', response.data.data);
-      return response.data.data;
+
+      console.log('✅ Réponse complète:', response.data);
+
+      // Vérifier la structure de la réponse
+      if (!response.data || !response.data.data) {
+        console.warn('⚠️ Structure de réponse inattendue:', response.data);
+        return {
+          operations: [],
+          pagination: {
+            page: Number(page),
+            limit: Number(limit),
+            total: 0,
+            pages: 0
+          }
+        };
+      }
+
+      const data = response.data.data;
+      console.log('✅ Données extraites:', data);
+
+      // Vérifier que les opérations existent
+      if (!data.operations) {
+        console.warn('⚠️ Pas d\'opérations dans la réponse:', data);
+        return {
+          operations: [],
+          pagination: data.pagination || {
+            page: Number(page),
+            limit: Number(limit),
+            total: 0,
+            pages: 0
+          }
+        };
+      }
+
+      return data;
     } catch (error) {
       console.error('❌ Erreur lors de la récupération de l\'historique:', error);
-      throw error;
+      // Retourner une structure vide plutôt que de throw
+      return {
+        operations: [],
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total: 0,
+          pages: 0
+        }
+      };
     }
   }
 
@@ -229,11 +270,28 @@ export class DataOperationsService {
       console.log('📊 Récupération statistiques');
 
       const response = await apiClient.get('/data/stats');
-      
+
       console.log('✅ Statistiques récupérées:', response.data.data);
       return response.data.data.statistics;
     } catch (error) {
       console.error('❌ Erreur lors de la récupération des statistiques:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Test de la base de données (debug)
+   */
+  static async testDatabase(): Promise<any> {
+    try {
+      console.log('🧪 Test de la base de données');
+
+      const response = await apiClient.get('/data/test-db');
+
+      console.log('✅ Test DB terminé:', response.data.data);
+      return response.data.data;
+    } catch (error) {
+      console.error('❌ Erreur lors du test DB:', error);
       throw error;
     }
   }
