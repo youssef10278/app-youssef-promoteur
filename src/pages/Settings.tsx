@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/components/layout/AppLayout';
-import { DataExport } from '@/components/settings/DataExport';
+import { DataImportExport } from '@/components/settings/DataImportExport';
 
 import {
   ArrowLeft,
@@ -200,7 +200,7 @@ const Settings = () => {
             }`}
           >
             <Download className="h-4 w-4" />
-            <span>Export</span>
+            <span>Données</span>
           </button>
         </div>
 
@@ -379,7 +379,7 @@ const Settings = () => {
         )}
 
         {activeTab === 'export' && (
-          <DataExport />
+          <DataImportExport />
         )}
       </div>
     </AppLayout>

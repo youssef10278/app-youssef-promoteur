@@ -1,13 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Database, FileText, DollarSign, Receipt, CreditCard } from 'lucide-react';
+import { Download, Upload, Database, FileText, DollarSign, Receipt, CreditCard } from 'lucide-react';
 import { apiClient } from '../../integrations/api/client';
 
-export const DataExport: React.FC = () => {
+export const DataImportExport: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importStrategy, setImportStrategy] = useState<'ignore' | 'replace' | 'create_new'>('ignore');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const downloadFile = (data: any, filename: string) => {
@@ -78,6 +84,101 @@ export const DataExport: React.FC = () => {
     }
   };
 
+  const handleImport = async () => {
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) {
+      toast({
+        title: "Fichier requis",
+        description: "Veuillez sélectionner un fichier JSON à importer.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!file.name.endsWith('.json')) {
+      toast({
+        title: "Format invalide",
+        description: "Seuls les fichiers JSON sont supportés.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      console.log('📥 Début import fichier:', file.name);
+
+      const fileContent = await file.text();
+      const importData = JSON.parse(fileContent);
+
+      console.log('📋 Données parsées:', importData);
+
+      // Détecter le type de données
+      let dataType: string;
+      let data: any[];
+
+      if (importData.export_info && importData.export_info.data_type) {
+        // Export sélectif
+        dataType = importData.export_info.data_type;
+        data = importData.data || [];
+      } else if (importData.projects || importData.sales || importData.expenses || importData.checks || importData.payments) {
+        // Export global - demander à l'utilisateur quel type importer
+        const types = [];
+        if (importData.projects?.length) types.push('projects');
+        if (importData.sales?.length) types.push('sales');
+        if (importData.expenses?.length) types.push('expenses');
+        if (importData.checks?.length) types.push('checks');
+        if (importData.payments?.length) types.push('payments');
+
+        if (types.length === 0) {
+          throw new Error('Aucune donnée trouvée dans le fichier');
+        }
+
+        // Pour l'instant, importer le premier type trouvé
+        dataType = types[0];
+        data = importData[dataType];
+
+        toast({
+          title: "Import partiel",
+          description: `Import de ${dataType} uniquement. Fichier contient: ${types.join(', ')}`,
+        });
+      } else {
+        throw new Error('Format de fichier non reconnu');
+      }
+
+      console.log(`📥 Import ${dataType}:`, data.length, 'enregistrements');
+
+      const response = await apiClient.post('/data-export/import', {
+        data,
+        dataType,
+        strategy: importStrategy
+      });
+
+      console.log('✅ Import réussi:', response.data);
+
+      const result = response.data.data;
+      toast({
+        title: "Import réussi",
+        description: `${result.imported} importés, ${result.skipped} ignorés sur ${result.total} total`,
+      });
+
+      // Réinitialiser le fichier
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur import:', error);
+      toast({
+        title: "Erreur d'import",
+        description: `Impossible d'importer le fichier: ${(error as Error).message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const exportOptions = [
     { type: 'projects', label: 'Projets', icon: FileText, description: 'Tous vos projets' },
     { type: 'sales', label: 'Ventes', icon: DollarSign, description: 'Toutes vos ventes' },
@@ -92,16 +193,58 @@ export const DataExport: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Database className="h-5 w-5" />
-            Export de Données
+            Import / Export de Données
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <Alert>
             <Download className="h-4 w-4" />
             <AlertDescription>
-              Exportez vos données au format JSON pour créer des sauvegardes ou transférer vos informations.
+              Exportez vos données au format JSON pour créer des sauvegardes ou importez des données depuis un fichier JSON.
             </AlertDescription>
           </Alert>
+
+          {/* Import de Données */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Import de Données</h3>
+            <div className="p-4 border rounded-lg bg-muted/50">
+              <div className="space-y-4">
+                <div className="grid gap-4">
+                  <div>
+                    <Label htmlFor="import-file">Fichier JSON</Label>
+                    <Input
+                      id="import-file"
+                      type="file"
+                      accept=".json"
+                      ref={fileInputRef}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="import-strategy">Stratégie de doublons</Label>
+                    <Select value={importStrategy} onValueChange={(value: any) => setImportStrategy(value)}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ignore">Ignorer les doublons</SelectItem>
+                        <SelectItem value="replace">Remplacer les doublons</SelectItem>
+                        <SelectItem value="create_new">Créer de nouveaux enregistrements</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleImport}
+                  disabled={isImporting}
+                  className="w-full"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {isImporting ? 'Import en cours...' : 'Importer les Données'}
+                </Button>
+              </div>
+            </div>
+          </div>
 
           {/* Export Global */}
           <div className="space-y-4">
@@ -161,9 +304,11 @@ export const DataExport: React.FC = () => {
           {/* Informations */}
           <Alert>
             <AlertDescription>
-              <strong>Format :</strong> Les fichiers sont exportés au format JSON avec métadonnées (date, nombre d'enregistrements).
+              <strong>Export :</strong> Les fichiers sont exportés au format JSON avec métadonnées.
               <br />
-              <strong>Sécurité :</strong> Seules vos données personnelles sont exportées.
+              <strong>Import :</strong> Seuls les fichiers JSON d'export sont supportés.
+              <br />
+              <strong>Sécurité :</strong> Seules vos données personnelles sont traitées.
             </AlertDescription>
           </Alert>
         </CardContent>

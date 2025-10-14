@@ -20,7 +20,7 @@ import paymentRoutes from './routes/payments';
 import expensePaymentRoutes from './routes/expensePayments';
 import migrateRoutes from './routes/migrate';
 import companySettingsRoutes from './routes/companySettings';
-import dataExportRoutes from './routes/dataExport';
+import dataImportExportRoutes from './routes/dataImportExport';
 
 
 dotenv.config();
@@ -176,7 +176,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/expense-payments', expensePaymentRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/company-settings', companySettingsRoutes);
-app.use('/api/data-export', dataExportRoutes);
+app.use('/api/data-export', dataImportExportRoutes);
 
 
 // Route de test temporaire pour diagnostiquer
