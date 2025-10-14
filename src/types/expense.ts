@@ -55,6 +55,7 @@ export interface ExpensePayment {
   montant_paye: number;
   montant_declare: number;
   montant_non_declare: number;
+  montant_especes: number;  // NEW - Pour mode cheque_espece
   date_paiement: string;
   mode_paiement: PaymentMode;
   description?: string;
@@ -141,6 +142,7 @@ export interface ExpensePaymentFormData {
   montant_paye: number;
   montant_declare: number;
   montant_non_declare: number;
+  montant_especes: number;  // NEW - Pour mode cheque_espece
   date_paiement: string;
   mode_paiement: PaymentMode;
   description?: string;
@@ -153,6 +155,7 @@ export interface ExpensePaymentFormData {
     date_emission: string;
     date_encaissement: string;
     banque_emettrice?: string;
+    montant_cheque?: number;  // NEW - Pour mode cheque_espece
   };
 }
 
