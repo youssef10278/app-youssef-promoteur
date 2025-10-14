@@ -179,10 +179,11 @@ router.post('/import', asyncHandler(async (req: Request, res: Response) => {
       requiredFields = ['expense_id', 'amount'];
       break;
     default:
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Type de données non supporté'
       });
+      return;
   }
 
   try {
