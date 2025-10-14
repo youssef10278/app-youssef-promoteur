@@ -109,9 +109,33 @@ export const DataImportExport: React.FC = () => {
       console.log('📥 Début import fichier:', file.name);
 
       const fileContent = await file.text();
-      const importData = JSON.parse(fileContent);
+      console.log('📄 Contenu fichier (100 premiers caractères):', fileContent.substring(0, 100));
+
+      // Validation du contenu
+      if (!fileContent || fileContent.trim() === '') {
+        throw new Error('Le fichier est vide');
+      }
+
+      if (fileContent.trim() === 'undefined' || fileContent.trim() === 'null') {
+        throw new Error('Le fichier contient des données invalides (undefined/null)');
+      }
+
+      // Tentative de parsing JSON avec gestion d'erreur détaillée
+      let importData;
+      try {
+        importData = JSON.parse(fileContent);
+      } catch (parseError) {
+        console.error('❌ Erreur parsing JSON:', parseError);
+        console.error('📄 Contenu problématique:', fileContent.substring(0, 200));
+        throw new Error(`Format JSON invalide: ${(parseError as Error).message}`);
+      }
 
       console.log('📋 Données parsées:', importData);
+
+      // Validation de la structure JSON
+      if (!importData || typeof importData !== 'object') {
+        throw new Error('Le fichier ne contient pas un objet JSON valide');
+      }
 
       // Détecter le type de données
       let dataType: string;

@@ -33,6 +33,15 @@ router.get('/export-all', async (req: Request, res: Response) => {
       payments: payments.rows
     };
 
+    console.log('📤 Export data structure:', {
+      hasExportInfo: !!exportData.export_info,
+      projectsCount: exportData.projects.length,
+      salesCount: exportData.sales.length,
+      expensesCount: exportData.expenses.length,
+      checksCount: exportData.checks.length,
+      paymentsCount: exportData.payments.length
+    });
+
     const fileName = `export-donnees-${new Date().toISOString().split('T')[0]}.json`;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
