@@ -785,59 +785,7 @@ router.get('/:id/payments', asyncHandler(async (req: Request, res: Response) => 
   res.json(response);
 }));
 
-// Modifier un paiement de dépense
-router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Response) => {
-  const { paymentId } = req.params;
-  const validatedData = validate(createExpensePaymentSchema, req.body);
 
-  // Vérifier que le paiement appartient à l'utilisateur
-  const paymentCheck = await query(
-    `SELECT ep.*, e.statut as expense_statut
-     FROM expense_payments ep
-     JOIN expenses e ON ep.expense_id = e.id
-     WHERE ep.id = $1 AND ep.user_id = $2`,
-    [paymentId, req.user!.userId]
-  );
-
-  if (paymentCheck.rows.length === 0) {
-    throw createError('Paiement non trouvé', 404);
-  }
-
-  const payment = paymentCheck.rows[0];
-
-  // Vérifier que la dépense n'est pas annulée
-  if (payment.expense_statut === 'annule') {
-    throw createError('Impossible de modifier un paiement d\'une dépense annulée', 400);
-  }
-
-  // Mettre à jour le paiement
-  const result = await query(
-    `UPDATE expense_payments
-     SET montant_paye = $1, montant_declare = $2, montant_non_declare = $3,
-         date_paiement = $4, mode_paiement = $5, description = $6,
-         reference_paiement = $7, updated_at = NOW()
-     WHERE id = $8
-     RETURNING *`,
-    [
-      validatedData.montant_paye,
-      validatedData.montant_declare,
-      validatedData.montant_non_declare,
-      validatedData.date_paiement,
-      validatedData.mode_paiement,
-      validatedData.description || '',
-      validatedData.reference_paiement || null,
-      paymentId
-    ]
-  );
-
-  const response: ApiResponse = {
-    success: true,
-    data: result.rows[0],
-    message: 'Paiement modifié avec succès'
-  };
-
-  res.json(response);
-}));
 
 // Modifier un paiement de dépense
 router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Response) => {
