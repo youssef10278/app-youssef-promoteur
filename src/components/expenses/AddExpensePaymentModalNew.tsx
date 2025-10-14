@@ -219,14 +219,26 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
     setIsLoading(true);
 
     try {
+      console.log('🔍 [FRONTEND DEBUG] handleSubmit appelé:', {
+        editingPayment: !!editingPayment,
+        editingPaymentId: editingPayment?.id,
+        formData,
+        mode_paiement: formData.mode_paiement,
+        cheque_data: formData.cheque_data
+      });
+
       let response;
 
       if (editingPayment) {
         // Mode modification
+        console.log('🔍 [FRONTEND DEBUG] Appel PUT:', `/expenses/payments/${editingPayment.id}`);
         response = await apiClient.put(`/expenses/payments/${editingPayment.id}`, formData);
+        console.log('🔍 [FRONTEND DEBUG] Réponse PUT:', response);
       } else {
         // Mode ajout
+        console.log('🔍 [FRONTEND DEBUG] Appel POST:', `/expenses/${expense.id}/payments`);
         response = await apiClient.post(`/expenses/${expense.id}/payments`, formData);
+        console.log('🔍 [FRONTEND DEBUG] Réponse POST:', response);
       }
 
       if (response.success) {
@@ -242,6 +254,13 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
         throw new Error(response.error || `Erreur lors de ${editingPayment ? 'la modification' : 'l\'ajout'} du paiement`);
       }
     } catch (error) {
+      console.error('🚨 [FRONTEND DEBUG] Erreur complète:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Erreur inconnue',
+        errorStack: error instanceof Error ? error.stack : 'Pas de stack',
+        editingPayment: !!editingPayment,
+        formData
+      });
       console.error(`Erreur lors de ${editingPayment ? 'la modification' : 'l\'ajout'} du paiement:`, error);
 
       const errorMessage = error instanceof Error ? error.message : `Erreur lors de ${editingPayment ? 'la modification' : 'l\'ajout'} du paiement`;
