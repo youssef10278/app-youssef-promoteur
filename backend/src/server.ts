@@ -27,7 +27,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Force redeploy for data operations routes - 2025-01-14
+// Force redeploy for data operations routes - 2025-01-14 v2
+console.log('🚀 Serveur démarré avec routes data-operations v2');
 
 // Configuration CORS - Support de plusieurs domaines
 const allowedOrigins = [
@@ -175,6 +176,23 @@ app.use('/api/expense-payments', expensePaymentRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/company-settings', companySettingsRoutes);
 app.use('/api/data', dataOperationsRoutes);
+
+// Route de test temporaire pour diagnostiquer
+app.post('/api/test-file-upload', (req, res) => {
+  console.log('🧪 Route test temporaire appelée:', {
+    hasBody: !!req.body,
+    contentType: req.headers['content-type'],
+    bodyKeys: Object.keys(req.body || {}),
+    files: req.files || 'Aucun fichier'
+  });
+
+  res.json({
+    success: true,
+    message: 'Route test temporaire fonctionne',
+    hasBody: !!req.body,
+    contentType: req.headers['content-type']
+  });
+});
 
 // Route de base
 app.get('/', (req, res) => {
