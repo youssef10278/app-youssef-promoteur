@@ -842,7 +842,18 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
 // Modifier un paiement de dépense
 router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Response) => {
   const { paymentId } = req.params;
+  console.log('🔍 [DEBUG] Route PUT appelée:', {
+    paymentId,
+    body: req.body,
+    mode_paiement: req.body.mode_paiement,
+    cheque_data: req.body.cheque_data
+  });
+
   const validatedData = validate(createExpensePaymentSchema, req.body);
+  console.log('🔍 [DEBUG] Données validées:', {
+    mode_paiement: validatedData.mode_paiement,
+    cheque_data: validatedData.cheque_data
+  });
 
   // Vérifier que le paiement appartient à l'utilisateur et récupérer le chèque associé
   const paymentCheck = await query(
@@ -860,6 +871,13 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
   }
 
   const payment = paymentCheck.rows[0];
+  console.log('🔍 [DEBUG] Paiement trouvé:', {
+    id: payment.id,
+    mode_paiement: payment.mode_paiement,
+    existing_check_id: payment.existing_check_id,
+    reference_paiement: payment.reference_paiement,
+    expense_id: payment.expense_id
+  });
 
   // Vérifier que la dépense n'est pas annulée
   if (payment.expense_statut === 'annule') {
@@ -887,7 +905,15 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
   );
 
   // Gestion du chèque selon le mode de paiement
+  console.log('🔍 [DEBUG] Conditions chèque:', {
+    isChequeModePayment: validatedData.mode_paiement === 'cheque',
+    hasChequeData: !!validatedData.cheque_data,
+    validatedModePayment: validatedData.mode_paiement,
+    chequeDataKeys: validatedData.cheque_data ? Object.keys(validatedData.cheque_data) : 'null'
+  });
+
   if (validatedData.mode_paiement === 'cheque' && validatedData.cheque_data) {
+    console.log('🔍 [DEBUG] Entrée dans la logique de chèque');
     let existingCheckId = payment.existing_check_id;
 
     // Si pas de check_id mais c'était un paiement par chèque, chercher par expense_id + numero_cheque
