@@ -76,7 +76,7 @@ export class DataOperationsService {
 
       // Convertir le fichier en base64
       const fileContent = await fileToBase64(file);
-      
+
       console.log('📤 Fichier converti en base64, taille:', fileContent.length);
 
       // Envoyer la requête avec le contenu base64
@@ -85,12 +85,44 @@ export class DataOperationsService {
         file_name: file.name,
         data_type: dataType
       });
-      
-      console.log('✅ Réponse validation:', response.data);
-      return response.data.data;
+
+      console.log('✅ Réponse complète validation:', response.data);
+
+      // Vérifier la structure de la réponse
+      if (!response.data || !response.data.data) {
+        console.warn('⚠️ Structure de réponse validation inattendue:', response.data);
+        return {
+          valid: false,
+          records_count: 0,
+          errors: ['Structure de réponse invalide'],
+          warnings: []
+        };
+      }
+
+      const validationData = response.data.data;
+      console.log('✅ Données validation extraites:', validationData);
+
+      // Vérifier que les propriétés existent
+      if (typeof validationData.valid === 'undefined') {
+        console.warn('⚠️ Propriété valid manquante:', validationData);
+        return {
+          valid: false,
+          records_count: validationData.records_count || 0,
+          errors: validationData.errors || ['Validation échouée'],
+          warnings: validationData.warnings || []
+        };
+      }
+
+      return validationData;
     } catch (error) {
       console.error('❌ Erreur lors de la validation:', error);
-      throw error;
+      // Retourner une structure d'erreur plutôt que de throw
+      return {
+        valid: false,
+        records_count: 0,
+        errors: [`Erreur de validation: ${(error as Error).message}`],
+        warnings: []
+      };
     }
   }
 
@@ -122,9 +154,19 @@ export class DataOperationsService {
         data_type: dataType,
         duplicate_strategy: duplicateStrategy
       });
-      
-      console.log('✅ Réponse import:', response.data);
-      return response.data.data;
+
+      console.log('✅ Réponse complète import:', response.data);
+
+      // Vérifier la structure de la réponse
+      if (!response.data || !response.data.data) {
+        console.warn('⚠️ Structure de réponse import inattendue:', response.data);
+        throw new Error('Structure de réponse invalide');
+      }
+
+      const importData = response.data.data;
+      console.log('✅ Données import extraites:', importData);
+
+      return importData;
     } catch (error) {
       console.error('❌ Erreur lors de l\'import:', error);
       throw error;
@@ -144,8 +186,18 @@ export class DataOperationsService {
         include_metadata: true
       });
       
-      console.log('✅ Réponse export global:', response.data);
-      return response.data.data;
+      console.log('✅ Réponse complète export global:', response.data);
+
+      // Vérifier la structure de la réponse
+      if (!response.data || !response.data.data) {
+        console.warn('⚠️ Structure de réponse export inattendue:', response.data);
+        throw new Error('Structure de réponse invalide');
+      }
+
+      const exportData = response.data.data;
+      console.log('✅ Données export extraites:', exportData);
+
+      return exportData;
     } catch (error) {
       console.error('❌ Erreur lors de l\'export global:', error);
       throw error;
@@ -168,8 +220,18 @@ export class DataOperationsService {
         include_metadata: false
       });
       
-      console.log('✅ Réponse export sélectif:', response.data);
-      return response.data.data;
+      console.log('✅ Réponse complète export sélectif:', response.data);
+
+      // Vérifier la structure de la réponse
+      if (!response.data || !response.data.data) {
+        console.warn('⚠️ Structure de réponse export sélectif inattendue:', response.data);
+        throw new Error('Structure de réponse invalide');
+      }
+
+      const exportData = response.data.data;
+      console.log('✅ Données export sélectif extraites:', exportData);
+
+      return exportData;
     } catch (error) {
       console.error('❌ Erreur lors de l\'export sélectif:', error);
       throw error;
