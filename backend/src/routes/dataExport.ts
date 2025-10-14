@@ -92,10 +92,11 @@ router.get('/export/:dataType', asyncHandler(async (req: Request, res: Response)
       fileName = 'paiements';
       break;
     default:
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Type de données non supporté'
       });
+      return;
   }
 
   try {
