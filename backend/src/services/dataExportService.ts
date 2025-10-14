@@ -84,11 +84,11 @@ export class DataExportService {
 
     } catch (error) {
       console.error('❌ Erreur lors de l\'export:', error);
-      
+
       // Marquer l'opération comme échouée
       await query(
         `UPDATE data_operations SET status = 'failed', error_message = $1, updated_at = NOW() WHERE id = $2`,
-        [error.message, operationId]
+        [(error as Error).message, operationId]
       );
 
       throw error;

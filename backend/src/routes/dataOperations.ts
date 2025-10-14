@@ -92,9 +92,9 @@ router.post('/import', asyncHandler(async (req: Request, res: Response) => {
     data = JSON.parse(decodedContent);
     if (!Array.isArray(data)) {
       // Si c'est un objet, chercher un tableau
-      const arrayKeys = Object.keys(data).filter(key => Array.isArray(data[key]));
+      const arrayKeys = Object.keys(data).filter(key => Array.isArray((data as any)[key]));
       if (arrayKeys.length === 1) {
-        data = data[arrayKeys[0]];
+        data = (data as any)[arrayKeys[0]];
       } else {
         throw createError('Le fichier JSON doit contenir un tableau de données', 400);
       }

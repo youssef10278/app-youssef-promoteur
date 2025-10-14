@@ -42,7 +42,7 @@ export class DataValidationService {
       return {
         valid: false,
         records_count: 0,
-        errors: [`Erreur de validation: ${error.message}`],
+        errors: [`Erreur de validation: ${(error as Error).message}`],
         warnings: []
       };
     }
@@ -65,7 +65,7 @@ export class DataValidationService {
         throw new Error('Format JSON invalide');
       }
     } catch (error) {
-      throw new Error(`Erreur de parsing JSON: ${error.message}`);
+      throw new Error(`Erreur de parsing JSON: ${(error as Error).message}`);
     }
   }
 
@@ -92,7 +92,7 @@ export class DataValidationService {
 
       return data;
     } catch (error) {
-      throw new Error(`Erreur de parsing CSV: ${error.message}`);
+      throw new Error(`Erreur de parsing CSV: ${(error as Error).message}`);
     }
   }
 

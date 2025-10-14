@@ -21,16 +21,42 @@ import {
   HardDrive
 } from 'lucide-react';
 
-import { DataOperationsService } from '@/services/dataOperationsService';
 import {
+  DataOperationsService,
   DataOperation,
   DataType,
   DuplicateStrategy,
-  DATA_TYPE_LABELS,
-  OPERATION_TYPE_LABELS,
-  DUPLICATE_STRATEGY_LABELS,
-  STATUS_LABELS
-} from '@/types/data-operations';
+  ValidationResponse,
+  ImportResponse,
+  ExportResponse
+} from '../../services/dataOperationsServiceNew';
+
+// Labels pour l'interface
+const DATA_TYPE_LABELS: Record<DataType, string> = {
+  global: 'Toutes les données',
+  projects: 'Projets',
+  sales: 'Ventes',
+  expenses: 'Dépenses',
+  checks: 'Chèques',
+  payments: 'Paiements'
+};
+
+const DUPLICATE_STRATEGY_LABELS: Record<DuplicateStrategy, string> = {
+  ignore: 'Ignorer les doublons',
+  replace: 'Remplacer les doublons',
+  create_new: 'Créer de nouveaux enregistrements'
+};
+
+const OPERATION_TYPE_LABELS = {
+  export: 'Export',
+  import: 'Import'
+};
+
+const STATUS_LABELS = {
+  pending: 'En cours',
+  completed: 'Terminé',
+  failed: 'Échoué'
+};
 
 export const DataManagement: React.FC = () => {
   const { toast } = useToast();

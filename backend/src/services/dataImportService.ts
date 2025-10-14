@@ -69,11 +69,11 @@ export class DataImportService {
 
     } catch (error) {
       console.error('❌ Erreur lors de l\'import:', error);
-      
+
       // Marquer l'opération comme échouée
       await query(
         `UPDATE data_operations SET status = 'failed', error_message = $1, updated_at = NOW() WHERE id = $2`,
-        [error.message, operationId]
+        [(error as Error).message, operationId]
       );
 
       return {
@@ -82,7 +82,7 @@ export class DataImportService {
         records_imported: recordsImported,
         records_skipped: recordsSkipped,
         records_failed: recordsFailed,
-        errors: [error.message]
+        errors: [(error as Error).message]
       };
     }
   }

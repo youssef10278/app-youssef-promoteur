@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { apiClient } from '../integrations/api/client';
 
 // Types pour les opérations de données
 export type DataType = 'global' | 'projects' | 'sales' | 'expenses' | 'checks' | 'payments';
