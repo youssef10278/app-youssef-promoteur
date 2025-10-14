@@ -693,10 +693,10 @@ router.post('/:id/payments', asyncHandler(async (req: Request, res: Response) =>
   // Créer le paiement
   const result = await query(
     `INSERT INTO expense_payments (
-       expense_id, user_id, montant_paye, montant_declare, montant_non_declare,
+       expense_id, user_id, montant_paye, montant_declare, montant_non_declare, montant_especes,
        date_paiement, mode_paiement, description, reference_paiement
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
     [
       id,
@@ -704,6 +704,7 @@ router.post('/:id/payments', asyncHandler(async (req: Request, res: Response) =>
       validatedData.montant_paye,
       validatedData.montant_declare,
       validatedData.montant_non_declare,
+      validatedData.montant_especes || 0,
       validatedData.date_paiement,
       validatedData.mode_paiement,
       validatedData.description || '',
@@ -713,8 +714,13 @@ router.post('/:id/payments', asyncHandler(async (req: Request, res: Response) =>
 
   const payment = result.rows[0];
 
-  // Si c'est un paiement par chèque, créer le chèque dans la table checks
-  if (validatedData.mode_paiement === 'cheque' && validatedData.cheque_data) {
+  // Si c'est un paiement par chèque ou chèque+espèces, créer le chèque dans la table checks
+  if ((validatedData.mode_paiement === 'cheque' || validatedData.mode_paiement === 'cheque_espece') && validatedData.cheque_data) {
+    // Déterminer le montant du chèque
+    const montantCheque = validatedData.mode_paiement === 'cheque_espece'
+      ? validatedData.cheque_data.montant_cheque
+      : validatedData.montant_paye;
+
     const chequeResult = await query(
       `INSERT INTO checks (
          user_id, expense_id, type_cheque, montant, numero_cheque,
@@ -726,17 +732,23 @@ router.post('/:id/payments', asyncHandler(async (req: Request, res: Response) =>
       [
         req.user!.userId,
         id,
-        validatedData.montant_paye,
+        montantCheque,
         validatedData.cheque_data.numero_cheque,
         validatedData.cheque_data.nom_beneficiaire,
         validatedData.cheque_data.nom_emetteur,
         validatedData.cheque_data.date_emission,
         validatedData.cheque_data.date_encaissement,
-        `Paiement dépense: ${expense.nom || 'Dépense'} - ${validatedData.description || ''}`
+        validatedData.mode_paiement === 'cheque_espece'
+          ? `Paiement mixte dépense: ${expense.nom || 'Dépense'} - Chèque: ${montantCheque} DH, Espèces: ${validatedData.montant_especes} DH`
+          : `Paiement dépense: ${expense.nom || 'Dépense'} - ${validatedData.description || ''}`
       ]
     );
 
-    console.log('✅ Chèque créé:', chequeResult.rows[0]);
+    console.log('✅ Chèque créé:', {
+      id: chequeResult.rows[0].id,
+      montant: montantCheque,
+      mode: validatedData.mode_paiement
+    });
 
     // Lier le chèque au paiement
     await query(
@@ -835,15 +847,16 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
   // Mettre à jour le paiement
   const result = await query(
     `UPDATE expense_payments
-     SET montant_paye = $1, montant_declare = $2, montant_non_declare = $3,
-         date_paiement = $4, mode_paiement = $5, description = $6,
-         reference_paiement = $7, updated_at = CURRENT_TIMESTAMP
-     WHERE id = $8
+     SET montant_paye = $1, montant_declare = $2, montant_non_declare = $3, montant_especes = $4,
+         date_paiement = $5, mode_paiement = $6, description = $7,
+         reference_paiement = $8, updated_at = CURRENT_TIMESTAMP
+     WHERE id = $9
      RETURNING *`,
     [
       validatedData.montant_paye,
       validatedData.montant_declare,
       validatedData.montant_non_declare,
+      validatedData.montant_especes || 0,
       validatedData.date_paiement,
       validatedData.mode_paiement,
       validatedData.description || '',
@@ -860,12 +873,12 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
     chequeDataKeys: validatedData.cheque_data ? Object.keys(validatedData.cheque_data) : 'null'
   });
 
-  if (validatedData.mode_paiement === 'cheque' && validatedData.cheque_data) {
-    console.log('🔍 [DEBUG] Entrée dans la logique de chèque');
+  if ((validatedData.mode_paiement === 'cheque' || validatedData.mode_paiement === 'cheque_espece') && validatedData.cheque_data) {
+    console.log('🔍 [DEBUG] Entrée dans la logique de chèque/cheque_espece');
     let existingCheckId = payment.existing_check_id;
 
     // Si pas de check_id mais c'était un paiement par chèque, chercher par expense_id + numero_cheque
-    if (!existingCheckId && payment.mode_paiement === 'cheque' && payment.reference_paiement) {
+    if (!existingCheckId && (payment.mode_paiement === 'cheque' || payment.mode_paiement === 'cheque_espece') && payment.reference_paiement) {
       const oldCheckResult = await query(
         'SELECT id FROM checks WHERE expense_id = $1 AND numero_cheque = $2 AND type_cheque = $3',
         [payment.expense_id, payment.reference_paiement, 'donne']
@@ -883,6 +896,11 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
     }
 
     if (existingCheckId) {
+      // Déterminer le montant du chèque selon le mode de paiement
+      const montantCheque = validatedData.mode_paiement === 'cheque_espece'
+        ? validatedData.cheque_data.montant_cheque
+        : validatedData.montant_paye;
+
       // Mettre à jour le chèque existant
       await query(
         `UPDATE checks
@@ -891,18 +909,29 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
              description = $7, updated_at = CURRENT_TIMESTAMP
          WHERE id = $8`,
         [
-          validatedData.montant_paye,
+          montantCheque,
           validatedData.cheque_data.numero_cheque,
           validatedData.cheque_data.nom_beneficiaire,
           validatedData.cheque_data.nom_emetteur,
           validatedData.cheque_data.date_emission,
           validatedData.cheque_data.date_encaissement,
-          `Paiement dépense: ${payment.expense_nom} - ${validatedData.description || ''}`,
+          validatedData.mode_paiement === 'cheque_espece'
+            ? `Paiement mixte dépense: ${payment.expense_nom} - Chèque: ${montantCheque} DH, Espèces: ${validatedData.montant_especes} DH`
+            : `Paiement dépense: ${payment.expense_nom} - ${validatedData.description || ''}`,
           existingCheckId
         ]
       );
-      console.log('✅ Chèque existant mis à jour:', existingCheckId);
+      console.log('✅ Chèque existant mis à jour:', {
+        id: existingCheckId,
+        montant: montantCheque,
+        mode: validatedData.mode_paiement
+      });
     } else {
+      // Déterminer le montant du chèque selon le mode de paiement
+      const montantCheque = validatedData.mode_paiement === 'cheque_espece'
+        ? validatedData.cheque_data.montant_cheque
+        : validatedData.montant_paye;
+
       // Créer un nouveau chèque et le lier au paiement
       const newCheckResult = await query(
         `INSERT INTO checks (
@@ -915,13 +944,15 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
         [
           req.user!.userId,
           payment.expense_id,
-          validatedData.montant_paye,
+          montantCheque,
           validatedData.cheque_data.numero_cheque,
           validatedData.cheque_data.nom_beneficiaire,
           validatedData.cheque_data.nom_emetteur,
           validatedData.cheque_data.date_emission,
           validatedData.cheque_data.date_encaissement,
-          `Paiement dépense: ${payment.expense_nom} - ${validatedData.description || ''}`
+          validatedData.mode_paiement === 'cheque_espece'
+            ? `Paiement mixte dépense: ${payment.expense_nom} - Chèque: ${montantCheque} DH, Espèces: ${validatedData.montant_especes} DH`
+            : `Paiement dépense: ${payment.expense_nom} - ${validatedData.description || ''}`
         ]
       );
 

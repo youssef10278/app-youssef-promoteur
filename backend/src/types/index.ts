@@ -133,6 +133,7 @@ export interface ExpensePayment {
   montant_paye: number;
   montant_declare: number;
   montant_non_declare: number;
+  montant_especes: number;  // NEW - Pour mode cheque_espece
   date_paiement: string;
   mode_paiement: 'espece' | 'cheque' | 'cheque_espece' | 'virement';
   description?: string;
@@ -175,6 +176,7 @@ export interface CreateExpensePaymentData {
   montant_paye: number;
   montant_declare: number;
   montant_non_declare: number;
+  montant_especes: number;  // NEW - Pour mode cheque_espece
   date_paiement: string;
   mode_paiement: 'espece' | 'cheque' | 'cheque_espece' | 'virement';
   description?: string;

@@ -91,32 +91,57 @@ export const createExpensePaymentSchema = Joi.object({
   montant_paye: Joi.number().min(0.01).required(),
   montant_declare: Joi.number().min(0).default(0),
   montant_non_declare: Joi.number().min(0).default(0),
+  montant_especes: Joi.number().min(0).default(0),  // NEW - Pour mode cheque_espece
   date_paiement: Joi.date().iso().required(),
   mode_paiement: Joi.string().valid('espece', 'cheque', 'cheque_espece', 'virement').required(),
   description: Joi.string().max(500).optional().allow(''),
   reference_paiement: Joi.string().max(100).optional().allow(''),
-  // Données du chèque (obligatoires si mode_paiement = 'cheque')
+  // Données du chèque (obligatoires si mode_paiement = 'cheque' ou 'cheque_espece')
   cheque_data: Joi.when('mode_paiement', {
-    is: 'cheque',
+    is: Joi.string().valid('cheque', 'cheque_espece'),
     then: Joi.object({
       numero_cheque: Joi.string().max(50).required(),
       nom_beneficiaire: Joi.string().max(200).required(),
       nom_emetteur: Joi.string().max(200).required(),
       date_emission: Joi.date().iso().required(),
       date_encaissement: Joi.date().iso().required(),
-      banque_emettrice: Joi.string().max(200).optional().allow('')
+      banque_emettrice: Joi.string().max(200).optional().allow(''),
+      montant_cheque: Joi.when('$mode_paiement', {
+        is: 'cheque_espece',
+        then: Joi.number().min(0.01).required(),
+        otherwise: Joi.optional()
+      })
     }).required(),
     otherwise: Joi.optional()
   })
 }).custom((value, helpers) => {
-  // Vérifier que montant_paye = montant_declare + montant_non_declare
-  const total = value.montant_declare + value.montant_non_declare;
-  if (Math.abs(total - value.montant_paye) > 0.01) {
-    return helpers.error('custom.montant_incoherent');
+  // Validation selon le mode de paiement
+  if (value.mode_paiement === 'cheque_espece') {
+    // Pour cheque_espece: vérifier montant_cheque + montant_especes = montant_paye
+    const montantCheque = value.cheque_data?.montant_cheque || 0;
+    const montantEspeces = value.montant_especes || 0;
+    if (Math.abs((montantCheque + montantEspeces) - value.montant_paye) > 0.01) {
+      return helpers.error('custom.montant_cheque_espece_incoherent');
+    }
+    if (montantCheque <= 0) {
+      return helpers.error('custom.montant_cheque_requis');
+    }
+    if (montantEspeces <= 0) {
+      return helpers.error('custom.montant_especes_requis');
+    }
+  } else {
+    // Pour autres modes: vérifier montant_paye = montant_declare + montant_non_declare
+    const total = value.montant_declare + value.montant_non_declare;
+    if (Math.abs(total - value.montant_paye) > 0.01) {
+      return helpers.error('custom.montant_incoherent');
+    }
   }
   return value;
 }, 'Validation cohérence montants').messages({
-  'custom.montant_incoherent': 'Le montant payé doit être égal à la somme des montants déclaré et non déclaré'
+  'custom.montant_incoherent': 'Le montant payé doit être égal à la somme des montants déclaré et non déclaré',
+  'custom.montant_cheque_espece_incoherent': 'Le montant payé doit être égal à la somme du montant chèque et espèces',
+  'custom.montant_cheque_requis': 'Le montant du chèque doit être supérieur à 0',
+  'custom.montant_especes_requis': 'Le montant en espèces doit être supérieur à 0'
 });
 
 // Schémas de validation pour les chèques
