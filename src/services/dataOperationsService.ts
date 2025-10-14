@@ -122,14 +122,21 @@ export class DataOperationsService {
       });
 
       // Extraire le nom du fichier depuis les headers ou utiliser un nom par défaut
-      const contentDisposition = response.headers['content-disposition'];
       let fileName = `export_${operationId}.json`;
 
-      if (contentDisposition) {
-        const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
-        if (fileNameMatch) {
-          fileName = fileNameMatch[1];
+      try {
+        const contentDisposition = response.headers?.['content-disposition'] ||
+                                 response.headers?.contentDisposition ||
+                                 response.headers?.get?.('content-disposition');
+
+        if (contentDisposition && typeof contentDisposition === 'string') {
+          const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+          if (fileNameMatch && fileNameMatch[1]) {
+            fileName = fileNameMatch[1];
+          }
         }
+      } catch (headerError) {
+        console.warn('Impossible de lire le nom du fichier depuis les headers:', headerError);
       }
 
       // Créer le blob et déclencher le téléchargement
