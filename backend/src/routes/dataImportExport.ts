@@ -10,7 +10,7 @@ const router = Router();
 router.use(authenticateToken);
 
 // Export global de toutes les données
-router.get('/export-all', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+router.get('/export-all', asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as any).user.userId;
   
   console.log('📤 Export global demandé pour userId:', userId);
@@ -62,14 +62,14 @@ router.get('/export-all', asyncHandler(async (req: Request, res: Response): Prom
 }));
 
 // Export par type de données
-router.get('/export/:dataType', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+router.get('/export/:dataType', asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as any).user.userId;
   const { dataType } = req.params;
   
   console.log('📤 Export spécifique demandé:', { userId, dataType });
 
-  let tableName: string;
-  let fileName: string;
+  let tableName!: string;
+  let fileName!: string;
 
   switch (dataType) {
     case 'projects':
@@ -134,7 +134,7 @@ router.get('/export/:dataType', asyncHandler(async (req: Request, res: Response)
 }));
 
 // Import de données
-router.post('/import', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+router.post('/import', asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as any).user.userId;
   const { data, dataType, strategy = 'ignore' } = req.body;
 
@@ -154,8 +154,8 @@ router.post('/import', asyncHandler(async (req: Request, res: Response): Promise
     });
   }
 
-  let tableName: string;
-  let requiredFields: string[];
+  let tableName!: string;
+  let requiredFields!: string[];
 
   switch (dataType) {
     case 'projects':
