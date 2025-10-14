@@ -116,19 +116,15 @@ export class DataOperationsService {
    */
   static async downloadExport(operationId: string): Promise<void> {
     try {
-      const response = await fetch(`${apiClient.defaults.baseURL}/data/download/${operationId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
+      // Utiliser apiClient directement pour le téléchargement
+      const response = await apiClient.get(`/data/download/${operationId}`, {
+        responseType: 'blob'
       });
 
-      if (!response.ok) {
-        throw new Error('Erreur lors du téléchargement');
-      }
+      // Extraire le nom du fichier depuis les headers ou utiliser un nom par défaut
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = `export_${operationId}.json`;
 
-      // Extraire le nom du fichier depuis les headers
-      const contentDisposition = response.headers.get('content-disposition');
-      let fileName = 'export.json';
       if (contentDisposition) {
         const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
         if (fileNameMatch) {
@@ -137,7 +133,7 @@ export class DataOperationsService {
       }
 
       // Créer le blob et déclencher le téléchargement
-      const blob = await response.blob();
+      const blob = new Blob([response.data]);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -163,8 +159,10 @@ export class DataOperationsService {
   }> {
     try {
       const response = await apiClient.get('/data/operations', {
-        page,
-        limit
+        params: {
+          page,
+          limit
+        }
       });
       return response.data;
     } catch (error) {
