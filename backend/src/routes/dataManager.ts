@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { query } from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger'; // Import du logger Winston comme recommandé
 
 const router = Router();
 router.use(authenticateToken);
@@ -148,18 +149,30 @@ router.get('/export/:dataType', async (req: Request, res: Response) => {
 
 // Import de données
 router.post('/import', async (req: Request, res: Response) => {
+  logger.info('🚀 DÉBUT du traitement de la requête d\'importation'); // Log de début comme recommandé
+
   try {
-    const userId = (req as any).user.userId;
+    const userId = (req as any).user?.userId;
     const { data, dataType, strategy = 'ignore' } = req.body;
 
+    logger.info('📥 Paramètres reçus:', { userId, dataType, strategy, count: data?.length });
     console.log('📥 Import:', { userId, dataType, strategy, count: data?.length });
 
+    // VALIDATION UTILISATEUR
+    if (!userId) {
+      logger.error('❌ ERREUR: userId undefined - utilisateur non authentifié');
+      return res.status(401).json({ success: false, message: 'Utilisateur non authentifié' });
+    }
+
     if (!data || !Array.isArray(data) || data.length === 0) {
+      logger.error('❌ ERREUR: Données invalides', { data: !!data, isArray: Array.isArray(data), length: data?.length });
       return res.status(400).json({
         success: false,
         message: 'Données invalides'
       });
     }
+
+    logger.info('✅ Validation des données réussie', { dataType, recordCount: data.length });
 
     const typeConfig: Record<string, { table: string; required: string[] }> = {
       projects: { table: 'projects', required: ['name'] },
@@ -171,6 +184,7 @@ router.post('/import', async (req: Request, res: Response) => {
 
     const config = typeConfig[dataType];
     if (!config) {
+      logger.error('❌ ERREUR: Type de données non supporté', { dataType, supportedTypes: Object.keys(typeConfig) });
       return res.status(400).json({
         success: false,
         message: 'Type non supporté'
@@ -180,6 +194,8 @@ router.post('/import', async (req: Request, res: Response) => {
     let imported = 0;
     let skipped = 0;
     const errors: string[] = [];
+
+    logger.info('🔄 Début du traitement des enregistrements', { table: config.table, totalRecords: data.length, strategy });
 
     for (const record of data) {
       try {
@@ -232,11 +248,19 @@ router.post('/import', async (req: Request, res: Response) => {
         imported++;
 
       } catch (recordError) {
+        logger.error('❌ Erreur sur un enregistrement:', recordError);
         console.error('❌ Erreur enregistrement:', recordError);
         errors.push(`Erreur: ${(recordError as Error).message}`);
         skipped++;
       }
     }
+
+    logger.info('✅ Traitement terminé avec succès. Envoi de la réponse JSON.', {
+      imported,
+      skipped,
+      total: data.length,
+      errorCount: errors.length
+    }); // Log avant la réponse comme recommandé
 
     return res.json({
       success: true,
@@ -250,6 +274,7 @@ router.post('/import', async (req: Request, res: Response) => {
     });
 
   } catch (error) {
+    logger.error('❌ ERREUR CRITIQUE lors de l\'importation:', error); // Log d'erreur détaillé comme recommandé
     console.error('❌ Erreur import:', error);
     return res.status(500).json({
       success: false,
