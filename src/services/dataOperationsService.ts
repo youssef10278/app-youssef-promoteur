@@ -56,7 +56,11 @@ export class DataOperationsService {
       formData.append('file', file);
       formData.append('data_type', dataType);
 
-      console.log('📤 FormData créé, envoi de la requête...');
+      console.log('📤 FormData créé:', {
+        hasFile: formData.has('file'),
+        hasDataType: formData.has('data_type'),
+        dataTypeValue: formData.get('data_type')
+      });
 
       // Test d'abord avec la route de test
       console.log('🧪 Test avec route de test...');
@@ -67,6 +71,7 @@ export class DataOperationsService {
         console.error('❌ Test upload échoué:', testError);
       }
 
+      console.log('📤 Envoi vers /import/validate...');
       // Ne pas spécifier Content-Type avec FormData - axios le fait automatiquement
       const response = await apiClient.post('/data/import/validate', formData);
 

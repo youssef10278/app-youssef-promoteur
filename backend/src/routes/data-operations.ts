@@ -7,59 +7,9 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
+import { parseMultipart } from '../middleware/parseMultipart';
 
 const router = Router();
-
-// Middleware pour parser les données multipart/form-data
-const parseMultipartData = (req: any, res: any, next: any) => {
-  const contentType = req.headers['content-type'];
-
-  if (!contentType || !contentType.includes('multipart/form-data')) {
-    return next();
-  }
-
-  let body = '';
-  req.on('data', (chunk: any) => {
-    body += chunk.toString();
-  });
-
-  req.on('end', () => {
-    try {
-      // Parse simple pour récupérer les données
-      const boundary = contentType.split('boundary=')[1];
-      if (boundary) {
-        const parts = body.split(`--${boundary}`);
-
-        for (const part of parts) {
-          if (part.includes('Content-Disposition: form-data; name="data_type"')) {
-            const match = part.match(/\r\n\r\n(.+?)\r\n/);
-            if (match) {
-              req.body = req.body || {};
-              req.body.data_type = match[1].trim();
-            }
-          }
-
-          if (part.includes('Content-Disposition: form-data; name="file"')) {
-            const filenameMatch = part.match(/filename="(.+?)"/);
-            const contentMatch = part.match(/\r\n\r\n([\s\S]+?)\r\n--/);
-
-            if (filenameMatch && contentMatch) {
-              req.file = {
-                originalname: filenameMatch[1],
-                buffer: Buffer.from(contentMatch[1], 'binary'),
-                size: contentMatch[1].length
-              };
-            }
-          }
-        }
-      }
-      next();
-    } catch (error) {
-      console.error('Erreur parsing multipart:', error);
-      next();
-    }
-  });
-};
 
 // Toutes les routes nécessitent une authentification
 router.use(authenticateToken);
@@ -68,7 +18,7 @@ router.use(authenticateToken);
 console.log('🔧 Routes data-operations chargées et configurées');
 
 // Route de test pour diagnostiquer les uploads
-router.post('/test-upload', parseMultipartData, asyncHandler(async (req: Request, res: Response) => {
+router.post('/test-upload', parseMultipart(), asyncHandler(async (req: Request, res: Response) => {
   console.log('🧪 Route test-upload appelée:', {
     hasFile: !!req.file,
     fileName: req.file?.originalname,
@@ -327,7 +277,7 @@ router.get('/operations', asyncHandler(async (req: Request, res: Response) => {
 // ==================== IMPORT ====================
 
 // Valider un fichier d'import
-router.post('/import/validate', parseMultipartData, asyncHandler(async (req: Request, res: Response) => {
+router.post('/import/validate', parseMultipart(), asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.userId;
   const { data_type } = req.body;
 
@@ -403,7 +353,7 @@ router.post('/import/validate', parseMultipartData, asyncHandler(async (req: Req
 }));
 
 // Import global
-router.post('/import/global', parseMultipartData, asyncHandler(async (req: Request, res: Response) => {
+router.post('/import/global', parseMultipart(), asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.userId;
   const { duplicate_strategy = 'ignore' } = req.body;
 
