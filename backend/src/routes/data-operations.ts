@@ -34,6 +34,24 @@ router.use(authenticateToken);
 // Log pour debug
 console.log('🔧 Routes data-operations chargées et configurées');
 
+// Route de test pour diagnostiquer les uploads
+router.post('/test-upload', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+  console.log('🧪 Route test-upload appelée:', {
+    hasFile: !!req.file,
+    fileName: req.file?.originalname,
+    fileSize: req.file?.size,
+    body: req.body,
+    headers: req.headers['content-type']
+  });
+
+  res.json({
+    success: true,
+    hasFile: !!req.file,
+    fileName: req.file?.originalname || 'Aucun fichier',
+    message: 'Test upload réussi'
+  });
+}));
+
 // ==================== EXPORT ====================
 
 // Export global (toutes les données en JSON)

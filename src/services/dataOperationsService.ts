@@ -58,6 +58,15 @@ export class DataOperationsService {
 
       console.log('📤 FormData créé, envoi de la requête...');
 
+      // Test d'abord avec la route de test
+      console.log('🧪 Test avec route de test...');
+      try {
+        const testResponse = await apiClient.post('/data/test-upload', formData);
+        console.log('✅ Test upload réussi:', testResponse.data);
+      } catch (testError) {
+        console.error('❌ Test upload échoué:', testError);
+      }
+
       // Ne pas spécifier Content-Type avec FormData - axios le fait automatiquement
       const response = await apiClient.post('/data/import/validate', formData);
 
