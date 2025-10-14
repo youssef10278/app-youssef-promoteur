@@ -20,6 +20,15 @@ export class DataImportService {
 
     try {
       // Créer l'opération dans la base
+      console.log('📝 Création opération import:', {
+        operationId,
+        userId,
+        dataType,
+        dataTypeLength: dataType.length,
+        fileName,
+        recordsCount: data.length
+      });
+
       await query(
         `INSERT INTO data_operations (id, user_id, operation_type, data_type, file_name, file_size, records_count, status)
          VALUES ($1, $2, 'import', $3, $4, $5, $6, 'pending')`,

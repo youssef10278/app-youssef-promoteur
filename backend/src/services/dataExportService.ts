@@ -19,10 +19,21 @@ export class DataExportService {
 
     try {
       // Créer l'opération dans la base
+      // Utiliser une représentation courte pour éviter la limite VARCHAR(20)
+      const dataTypeString = dataTypes.length > 1 ? 'multiple' : dataTypes[0];
+
+      console.log('📝 Création opération export:', {
+        operationId,
+        userId,
+        dataTypes,
+        dataTypeString,
+        dataTypeStringLength: dataTypeString.length
+      });
+
       await query(
         `INSERT INTO data_operations (id, user_id, operation_type, data_type, status)
          VALUES ($1, $2, 'export', $3, 'pending')`,
-        [operationId, userId, dataTypes.join(',')]
+        [operationId, userId, dataTypeString]
       );
 
       // Collecter les données
