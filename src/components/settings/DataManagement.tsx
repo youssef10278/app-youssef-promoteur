@@ -139,16 +139,29 @@ export const DataManagement: React.FC = () => {
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    console.log('📁 Fichier sélectionné:', file);
+
+    if (!file) {
+      console.log('❌ Aucun fichier sélectionné');
+      return;
+    }
+
+    console.log('✅ Fichier valide:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
 
     setImportFile(file);
     setValidationResult(null);
 
     // Validation automatique
     try {
+      console.log('🔍 Début validation pour type:', importType);
       const result = await DataOperationsService.validateImport(file, importType);
+      console.log('✅ Résultat validation:', result);
       setValidationResult(result);
-      
+
       if (!result.valid) {
         toast({
           title: "Fichier invalide",
@@ -157,6 +170,7 @@ export const DataManagement: React.FC = () => {
         });
       }
     } catch (error) {
+      console.error('❌ Erreur validation:', error);
       toast({
         title: "Erreur de validation",
         description: "Impossible de valider le fichier",
@@ -166,12 +180,28 @@ export const DataManagement: React.FC = () => {
   };
 
   const handleImportGlobal = async () => {
-    if (!importFile) return;
+    console.log('🔍 handleImportGlobal appelé, fichier:', importFile);
+
+    if (!importFile) {
+      console.error('❌ Aucun fichier sélectionné');
+      toast({
+        title: "Erreur",
+        description: "Veuillez sélectionner un fichier",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log('📁 Fichier à importer:', {
+      name: importFile.name,
+      size: importFile.size,
+      type: importFile.type
+    });
 
     setIsImporting(true);
     try {
       const result = await DataOperationsService.importGlobal(importFile, duplicateStrategy);
-      
+
       toast({
         title: "Import réussi",
         description: `${result.records_imported} enregistrements importés, ${result.records_skipped} ignorés`,
@@ -181,6 +211,7 @@ export const DataManagement: React.FC = () => {
       setValidationResult(null);
       loadOperationsHistory();
     } catch (error) {
+      console.error('❌ Erreur import:', error);
       toast({
         title: "Erreur d'import",
         description: "Impossible d'importer les données",

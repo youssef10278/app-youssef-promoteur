@@ -65,22 +65,32 @@ export class DataOperationsService {
    * Import global de données
    */
   static async importGlobal(
-    file: File, 
+    file: File,
     duplicateStrategy: 'ignore' | 'replace' | 'create_new' = 'ignore'
   ): Promise<ImportResponse> {
     try {
+      console.log('🔍 DataOperationsService.importGlobal appelé avec:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        duplicateStrategy
+      });
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('duplicate_strategy', duplicateStrategy);
 
+      console.log('📤 Envoi de la requête import global...');
       const response = await apiClient.post('/data/import/global', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
+
+      console.log('✅ Réponse import global:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Erreur lors de l\'import global:', error);
+      console.error('❌ Erreur lors de l\'import global:', error);
       throw error;
     }
   }
