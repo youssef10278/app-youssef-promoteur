@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/components/layout/AppLayout';
+import { DataManagement } from '@/components/settings/DataManagement';
 import {
   ArrowLeft,
   Key,
@@ -18,7 +19,8 @@ import {
   Palette,
   Save,
   Eye,
-  EyeOff
+  EyeOff,
+  HardDrive
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -46,6 +48,9 @@ const Settings = () => {
     telephone: user?.telephone || ''
   });
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
+  // État pour les onglets
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'data'>('profile');
 
   if (isLoading) {
     return (
@@ -161,17 +166,55 @@ const Settings = () => {
           </Link>
         </div>
 
-        {/* Informations du profil */}
-        <Card className="card-premium">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Informations du profil
-            </CardTitle>
-            <CardDescription>
-              Gérez vos informations personnelles
-            </CardDescription>
-          </CardHeader>
+        {/* Navigation par onglets */}
+        <div className="flex space-x-1 bg-muted p-1 rounded-lg">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'profile'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <User className="h-4 w-4" />
+            <span>Profil</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'security'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Shield className="h-4 w-4" />
+            <span>Sécurité</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('data')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'data'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <HardDrive className="h-4 w-4" />
+            <span>Données</span>
+          </button>
+        </div>
+
+        {/* Contenu des onglets */}
+        {activeTab === 'profile' && (
+          <Card className="card-premium">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Informations du profil
+              </CardTitle>
+              <CardDescription>
+                Gérez vos informations personnelles
+              </CardDescription>
+            </CardHeader>
           <CardContent>
             <form onSubmit={handleProfileUpdate} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -214,18 +257,21 @@ const Settings = () => {
             </form>
           </CardContent>
         </Card>
+        )}
 
-        {/* Changement de mot de passe */}
-        <Card className="card-premium">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Key className="h-5 w-5" />
-              Sécurité du compte
-            </CardTitle>
-            <CardDescription>
-              Modifiez votre mot de passe pour sécuriser votre compte
-            </CardDescription>
-          </CardHeader>
+        {activeTab === 'security' && (
+          <>
+            {/* Changement de mot de passe */}
+            <Card className="card-premium">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  Sécurité du compte
+                </CardTitle>
+                <CardDescription>
+                  Modifiez votre mot de passe pour sécuriser votre compte
+                </CardDescription>
+              </CardHeader>
           <CardContent>
             <form onSubmit={handlePasswordChange} className="space-y-4">
               <div className="space-y-4">
@@ -310,24 +356,30 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Informations de sécurité */}
-        <Card className="card-premium">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Informations de sécurité
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Sessions actives</p>
-                <p className="text-sm text-muted-foreground">Gérez vos sessions de connexion</p>
-              </div>
-              <Badge variant="secondary">1 session active</Badge>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Informations de sécurité */}
+            <Card className="card-premium">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Informations de sécurité
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Sessions actives</p>
+                    <p className="text-sm text-muted-foreground">Gérez vos sessions de connexion</p>
+                  </div>
+                  <Badge variant="secondary">1 session active</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {activeTab === 'data' && (
+          <DataManagement />
+        )}
       </div>
     </AppLayout>
   );

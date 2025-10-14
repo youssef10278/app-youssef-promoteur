@@ -144,9 +144,93 @@ BEGIN
 END $$;
 
 -- 9. Test de la vue
-SELECT 
+SELECT
     'Test de la vue expenses_with_totals' as test,
     COUNT(*) as nombre_depenses,
     SUM(total_paye_calcule) as total_paye,
     SUM(nombre_paiements) as total_paiements
 FROM expenses_with_totals;
+
+-- =====================================================
+-- Migration: Support Paiements Chèque + Espèces
+-- Date: 2025-01-13
+-- Description: Ajouter montant_especes pour mode cheque_espece
+-- =====================================================
+
+-- 10. Ajouter la colonne montant_especes si elle n'existe pas
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'expense_payments' AND column_name = 'montant_especes'
+    ) THEN
+        ALTER TABLE expense_payments
+        ADD COLUMN montant_especes DECIMAL(10,2) DEFAULT 0;
+
+        -- Mettre à jour les paiements existants
+        UPDATE expense_payments
+        SET montant_especes = 0
+        WHERE montant_especes IS NULL;
+
+        -- Ajouter contrainte pour cohérence
+        ALTER TABLE expense_payments
+        ADD CONSTRAINT check_montant_especes_positive
+        CHECK (montant_especes >= 0);
+
+        RAISE NOTICE 'Colonne montant_especes ajoutée à expense_payments';
+    ELSE
+        RAISE NOTICE 'Colonne montant_especes existe déjà';
+    END IF;
+END $$;
+
+-- =====================================================
+-- Migration: Import/Export des Données
+-- Date: 2025-01-13
+-- Description: Table pour historique des opérations import/export
+-- =====================================================
+
+-- 11. Créer la table data_operations
+CREATE TABLE IF NOT EXISTS data_operations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    operation_type VARCHAR(10) NOT NULL CHECK (operation_type IN ('export', 'import')),
+    data_type VARCHAR(20) NOT NULL, -- 'global', 'projects', 'sales', 'expenses', 'checks', 'payments'
+    file_name VARCHAR(255),
+    file_size BIGINT,
+    records_count INTEGER,
+    status VARCHAR(20) DEFAULT 'completed' CHECK (status IN ('pending', 'completed', 'failed')),
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 12. Index pour optimiser les requêtes
+CREATE INDEX IF NOT EXISTS idx_data_operations_user_id ON data_operations(user_id);
+CREATE INDEX IF NOT EXISTS idx_data_operations_created_at ON data_operations(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_data_operations_type ON data_operations(operation_type, data_type);
+
+-- 13. Vérification finale des nouvelles tables
+DO $$
+DECLARE
+    operations_table_exists BOOLEAN;
+    montant_especes_exists BOOLEAN;
+BEGIN
+    -- Vérifier table data_operations
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_name = 'data_operations'
+    ) INTO operations_table_exists;
+
+    -- Vérifier colonne montant_especes
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'expense_payments' AND column_name = 'montant_especes'
+    ) INTO montant_especes_exists;
+
+    RAISE NOTICE '========================================';
+    RAISE NOTICE 'NOUVELLES MIGRATIONS TERMINÉES !';
+    RAISE NOTICE '========================================';
+    RAISE NOTICE 'Table data_operations: %', CASE WHEN operations_table_exists THEN '✅ Créée' ELSE '❌ Échec' END;
+    RAISE NOTICE 'Colonne montant_especes: %', CASE WHEN montant_especes_exists THEN '✅ Ajoutée' ELSE '❌ Échec' END;
+    RAISE NOTICE 'Système Import/Export prêt !';
+END $$;
