@@ -9,8 +9,14 @@ router.use(authenticateToken);
 // Export global
 router.get('/export-all', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = (req as any).user?.userId;
     console.log('📤 Export global pour:', userId);
+
+    // VALIDATION UTILISATEUR comme suggéré
+    if (!userId) {
+      console.error('[EXPORT ERROR] userId undefined - utilisateur non authentifié');
+      return res.status(401).json({ success: false, message: 'Utilisateur non authentifié' });
+    }
 
     const [projects, sales, expenses, checks, payments] = await Promise.all([
       query('SELECT * FROM projects WHERE user_id = $1 ORDER BY created_at DESC', [userId]),
@@ -20,17 +26,26 @@ router.get('/export-all', async (req: Request, res: Response) => {
       query('SELECT * FROM expense_payments WHERE user_id = $1 ORDER BY created_at DESC', [userId])
     ]);
 
+    // PROTECTION CONTRE LES ROWS UNDEFINED
+    console.log('[EXPORT] Résultats requêtes:', {
+      projects: projects?.rows?.length || 0,
+      sales: sales?.rows?.length || 0,
+      expenses: expenses?.rows?.length || 0,
+      checks: checks?.rows?.length || 0,
+      payments: payments?.rows?.length || 0
+    });
+
     const exportData = {
       export_info: {
         date: new Date().toISOString(),
         user_id: userId,
-        total_records: projects.rows.length + sales.rows.length + expenses.rows.length + checks.rows.length + payments.rows.length
+        total_records: (projects?.rows?.length || 0) + (sales?.rows?.length || 0) + (expenses?.rows?.length || 0) + (checks?.rows?.length || 0) + (payments?.rows?.length || 0)
       },
-      projects: projects.rows,
-      sales: sales.rows,
-      expenses: expenses.rows,
-      checks: checks.rows,
-      payments: payments.rows
+      projects: projects?.rows || [],
+      sales: sales?.rows || [],
+      expenses: expenses?.rows || [],
+      checks: checks?.rows || [],
+      payments: payments?.rows || []
     };
 
     console.log('📤 Export data structure:', {
@@ -42,10 +57,19 @@ router.get('/export-all', async (req: Request, res: Response) => {
       paymentsCount: exportData.payments.length
     });
 
+    // DIAGNOSTIC DÉTAILLÉ comme suggéré par l'expert
+    console.log('[EXPORT] exportData:', JSON.stringify(exportData, null, 2));
+    if (!exportData) {
+      console.error('[EXPORT ERROR] exportData est undefined ou null');
+      return res.status(500).json({ success: false, message: 'Données d\'export undefined' });
+    }
+
     const fileName = `export-donnees-${new Date().toISOString().split('T')[0]}.json`;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    return res.json(exportData);
+
+    // SOLUTION RECOMMANDÉE : res.send au lieu de res.json
+    return res.send(JSON.stringify(exportData, null, 2));
   } catch (error) {
     console.error('❌ Erreur export global:', error);
     return res.status(500).json({
@@ -58,8 +82,14 @@ router.get('/export-all', async (req: Request, res: Response) => {
 // Export sélectif
 router.get('/export/:dataType', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = (req as any).user?.userId;
     const { dataType } = req.params;
+
+    // VALIDATION UTILISATEUR
+    if (!userId) {
+      console.error('[EXPORT SELECTIVE ERROR] userId undefined');
+      return res.status(401).json({ success: false, message: 'Utilisateur non authentifié' });
+    }
 
     const typeConfig: Record<string, { table: string; file: string }> = {
       projects: { table: 'projects', file: 'projets' },
@@ -82,20 +112,31 @@ router.get('/export/:dataType', async (req: Request, res: Response) => {
       [userId]
     );
 
+    console.log(`[EXPORT ${dataType}] Résultat:`, result?.rows?.length || 0, 'enregistrements');
+
     const exportData = {
       export_info: {
         date: new Date().toISOString(),
         user_id: userId,
         data_type: dataType,
-        total_records: result.rows.length
+        total_records: result?.rows?.length || 0
       },
-      data: result.rows
+      data: result?.rows || []
     };
+
+    // DIAGNOSTIC DÉTAILLÉ
+    console.log(`[EXPORT ${dataType}] exportData:`, JSON.stringify(exportData, null, 2));
+    if (!exportData) {
+      console.error(`[EXPORT ${dataType} ERROR] exportData est undefined`);
+      return res.status(500).json({ success: false, message: 'Données d\'export undefined' });
+    }
 
     const fileName = `export-${config.file}-${new Date().toISOString().split('T')[0]}.json`;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    return res.json(exportData);
+
+    // SOLUTION RECOMMANDÉE : res.send au lieu de res.json
+    return res.send(JSON.stringify(exportData, null, 2));
   } catch (error) {
     console.error('❌ Erreur export sélectif:', error);
     return res.status(500).json({

@@ -109,15 +109,17 @@ export const DataImportExport: React.FC = () => {
       console.log('📥 Début import fichier:', file.name);
 
       const fileContent = await file.text();
-      console.log('📄 Contenu fichier (100 premiers caractères):', fileContent.substring(0, 100));
+      console.log('📄 Contenu fichier (200 premiers caractères):', fileContent.substring(0, 200));
+      console.log('📄 Taille fichier:', fileContent.length, 'caractères');
 
-      // Validation du contenu
+      // VALIDATION STRICTE comme suggéré par l'expert
       if (!fileContent || fileContent.trim() === '') {
         throw new Error('Le fichier est vide');
       }
 
       if (fileContent.trim() === 'undefined' || fileContent.trim() === 'null') {
-        throw new Error('Le fichier contient des données invalides (undefined/null)');
+        console.error('🚨 PROBLÈME DÉTECTÉ: Le backend a renvoyé undefined/null au lieu de JSON');
+        throw new Error('Le fichier contient des données invalides (undefined/null) - problème backend détecté');
       }
 
       // Tentative de parsing JSON avec gestion d'erreur détaillée
@@ -126,8 +128,8 @@ export const DataImportExport: React.FC = () => {
         importData = JSON.parse(fileContent);
       } catch (parseError) {
         console.error('❌ Erreur parsing JSON:', parseError);
-        console.error('📄 Contenu problématique:', fileContent.substring(0, 200));
-        throw new Error(`Format JSON invalide: ${(parseError as Error).message}`);
+        console.error('📄 Contenu problématique (500 premiers caractères):', fileContent.substring(0, 500));
+        throw new Error(`Le fichier est corrompu ou non valide: ${(parseError as Error).message}`);
       }
 
       console.log('📋 Données parsées:', importData);
