@@ -27,6 +27,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Force redeploy for data operations routes - 2025-01-14
+
 // Configuration CORS - Support de plusieurs domaines
 const allowedOrigins = [
   'http://localhost:8080',

@@ -7,12 +7,13 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs/promises';
+import os from 'os';
 
 const router = Router();
 
 // Configuration multer pour upload de fichiers
 const upload = multer({
-  dest: 'uploads/',
+  dest: os.tmpdir(), // Utiliser le dossier temporaire du système
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB max
   },
@@ -29,6 +30,9 @@ const upload = multer({
 
 // Toutes les routes nécessitent une authentification
 router.use(authenticateToken);
+
+// Log pour debug
+console.log('🔧 Routes data-operations chargées et configurées');
 
 // ==================== EXPORT ====================
 
@@ -70,7 +74,7 @@ router.post('/export/global', asyncHandler(async (req: Request, res: Response) =
 
     // 3. Générer le fichier
     const fileName = `export_global_${new Date().toISOString().split('T')[0]}_${uuidv4().substring(0, 8)}.json`;
-    const filePath = path.join('uploads', fileName);
+    const filePath = path.join(os.tmpdir(), fileName);
     
     await fs.writeFile(filePath, JSON.stringify(exportData, null, 2));
     const stats = await fs.stat(filePath);
@@ -141,7 +145,7 @@ router.post('/export/selective', asyncHandler(async (req: Request, res: Response
 
       if (result.rows.length > 0) {
         const fileName = `export_${dataType}_${new Date().toISOString().split('T')[0]}_${uuidv4().substring(0, 8)}.${format}`;
-        const filePath = path.join('uploads', fileName);
+        const filePath = path.join(os.tmpdir(), fileName);
 
         if (format === 'json') {
           await fs.writeFile(filePath, JSON.stringify(result.rows, null, 2));
@@ -223,7 +227,7 @@ router.get('/download/:operationId', asyncHandler(async (req: Request, res: Resp
   }
 
   const operation = operationResult.rows[0];
-  const filePath = path.join('uploads', operation.file_name);
+  const filePath = path.join(os.tmpdir(), operation.file_name);
 
   try {
     await fs.access(filePath);
@@ -276,7 +280,15 @@ router.post('/import/validate', upload.single('file'), asyncHandler(async (req: 
   const userId = req.user!.userId;
   const { data_type } = req.body;
 
+  console.log('🔍 Route /import/validate appelée:', {
+    userId,
+    data_type,
+    hasFile: !!req.file,
+    fileName: req.file?.originalname
+  });
+
   if (!req.file) {
+    console.error('❌ Aucun fichier reçu dans la requête');
     throw createError('Fichier requis', 400);
   }
 
