@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/components/layout/AppLayout';
-import { DataManagement } from '@/components/settings/DataManagement';
+import { DataExport } from '@/components/settings/DataExport';
+
 import {
   ArrowLeft,
   Key,
@@ -20,7 +21,7 @@ import {
   Save,
   Eye,
   EyeOff,
-  HardDrive
+  Download
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -191,15 +192,15 @@ const Settings = () => {
             <span>Sécurité</span>
           </button>
           <button
-            onClick={() => setActiveTab('data')}
+            onClick={() => setActiveTab('export')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'data'
+              activeTab === 'export'
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <HardDrive className="h-4 w-4" />
-            <span>Données</span>
+            <Download className="h-4 w-4" />
+            <span>Export</span>
           </button>
         </div>
 
@@ -377,8 +378,8 @@ const Settings = () => {
           </>
         )}
 
-        {activeTab === 'data' && (
-          <DataManagement />
+        {activeTab === 'export' && (
+          <DataExport />
         )}
       </div>
     </AppLayout>
