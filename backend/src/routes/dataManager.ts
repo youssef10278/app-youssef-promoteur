@@ -36,10 +36,10 @@ router.get('/export-all', async (req: Request, res: Response) => {
     const fileName = `export-donnees-${new Date().toISOString().split('T')[0]}.json`;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    res.json(exportData);
+    return res.json(exportData);
   } catch (error) {
     console.error('❌ Erreur export global:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: `Erreur: ${(error as Error).message}`
     });
@@ -86,10 +86,10 @@ router.get('/export/:dataType', async (req: Request, res: Response) => {
     const fileName = `export-${config.file}-${new Date().toISOString().split('T')[0]}.json`;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    res.json(exportData);
+    return res.json(exportData);
   } catch (error) {
     console.error('❌ Erreur export sélectif:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: `Erreur: ${(error as Error).message}`
     });
@@ -188,7 +188,7 @@ router.post('/import', async (req: Request, res: Response) => {
       }
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         imported,
@@ -201,7 +201,7 @@ router.post('/import', async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error('❌ Erreur import:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: `Erreur: ${(error as Error).message}`
     });
