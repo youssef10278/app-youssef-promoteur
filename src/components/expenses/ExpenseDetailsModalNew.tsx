@@ -204,13 +204,13 @@ const ExpenseDetailsModalNew: React.FC<ExpenseDetailsModalNewProps> = ({
                     </p>
                   </div>
                   <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Montant Déclaré</p>
+                    <p className="text-sm text-muted-foreground">Montant Principal</p>
                     <p className="text-2xl font-bold text-green-600">
                       {formatAmount(expense.total_declare_calcule || 0)}
                     </p>
                   </div>
                   <div className="text-center p-4 bg-orange-50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Montant Non Déclaré</p>
+                    <p className="text-sm text-muted-foreground">Autre Montant</p>
                     <p className="text-2xl font-bold text-orange-600">
                       {formatAmount(expense.total_non_declare_calcule || 0)}
                     </p>
@@ -272,10 +272,10 @@ const ExpenseDetailsModalNew: React.FC<ExpenseDetailsModalNewProps> = ({
                                 {format(new Date(payment.date_paiement), 'dd/MM/yyyy', { locale: fr })}
                               </div>
                               <div>
-                                Déclaré: {formatAmount(payment.montant_declare)}
+                                Principal: {formatAmount(payment.montant_declare)}
                               </div>
                               <div>
-                                Non déclaré: {formatAmount(payment.montant_non_declare)}
+                                Autre: {formatAmount(payment.montant_non_declare)}
                               </div>
                             </div>
 

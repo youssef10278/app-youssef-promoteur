@@ -229,7 +229,7 @@ export function ExpenseDetailsModal({ expense, onRefresh }: ExpenseDetailsModalP
                 <div className="flex items-center space-x-3">
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Montant déclaré</p>
+                    <p className="text-sm text-muted-foreground">Montant principal</p>
                     <p className="font-medium">{formatAmount(expense.montant_declare)}</p>
                   </div>
                 </div>
@@ -237,7 +237,7 @@ export function ExpenseDetailsModal({ expense, onRefresh }: ExpenseDetailsModalP
                 <div className="flex items-center space-x-3">
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Montant non déclaré</p>
+                    <p className="text-sm text-muted-foreground">Autre montant</p>
                     <p className="font-medium">{formatAmount(expense.montant_non_declare)}</p>
                   </div>
                 </div>
@@ -385,10 +385,10 @@ export function ExpenseDetailsModal({ expense, onRefresh }: ExpenseDetailsModalP
                         <p className="text-muted-foreground">Répartition</p>
                         <div className="space-y-1">
                           {plan.montant_declare > 0 && (
-                            <p className="text-xs">Déclaré: {formatAmount(plan.montant_declare)}</p>
+                            <p className="text-xs">Principal: {formatAmount(plan.montant_declare)}</p>
                           )}
                           {plan.montant_non_declare > 0 && (
-                            <p className="text-xs">Non déclaré: {formatAmount(plan.montant_non_declare)}</p>
+                            <p className="text-xs">Autre: {formatAmount(plan.montant_non_declare)}</p>
                           )}
                         </div>
                       </div>
