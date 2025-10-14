@@ -27,6 +27,7 @@ import {
   DataType,
   DuplicateStrategy,
   DATA_TYPE_LABELS,
+  OPERATION_TYPE_LABELS,
   DUPLICATE_STRATEGY_LABELS,
   STATUS_LABELS
 } from '@/types/data-operations';
