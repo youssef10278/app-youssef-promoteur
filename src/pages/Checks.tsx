@@ -50,73 +50,47 @@ const Checks = () => {
     montant_min: null,
     montant_max: null,
     statut: '',
-    sortBy: 'created_at',
-    sortOrder: 'desc'
+    nom_beneficiaire: '',
+    nom_emetteur: '',
+    numero_cheque: ''
   });
 
-  useEffect(() => {
-    if (user) {
-      fetchProjects();
-    }
-  }, [user]);
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       const response = await apiClient.get('/projects');
-      const projects = response.data || [];
-
-      // Mapper les données pour correspondre au format attendu
-      const mappedProjects = projects.map((project: any) => ({
-        id: project.id,
-        nom: project.nom
-      }));
-
-      setProjects(mappedProjects);
-    } catch (error: any) {
+      if (response.data.success) {
+        setProjects(response.data.data);
+      }
+    } catch (error) {
       console.error('Erreur lors du chargement des projets:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les projets",
-        variant: "destructive",
-      });
     }
-  };
+  }, []);
 
-  const fetchChecks = async () => {
-    if (!user?.id) return;
-
-    setIsLoading(true);
+  const fetchChecks = useCallback(async () => {
     try {
-      // Convertir les filtres au format attendu par le service
-      const checkFilters: CheckFilters = {
-        searchTerm: filters.searchTerm || undefined,
-        type_cheque: filters.type_cheque || undefined,
-        date_debut: filters.date_debut?.toISOString().split('T')[0] || undefined,
-        date_fin: filters.date_fin?.toISOString().split('T')[0] || undefined,
-        montant_min: filters.montant_min || undefined,
-        montant_max: filters.montant_max || undefined,
-        statut: filters.statut || undefined,
-        sortBy: filters.sortBy,
-        sortOrder: filters.sortOrder
-      };
-
-      // Récupérer les chèques via l'API backend
-      let checks: CheckRecord[];
+      setIsLoading(true);
+      const queryParams = new URLSearchParams();
+      
       if (selectedProject && selectedProject !== 'all') {
-        checks = await CheckService.getChecksByProject(selectedProject, checkFilters);
-      } else {
-        checks = await CheckService.getChecks(checkFilters);
+        queryParams.append('project_id', selectedProject);
       }
 
-      console.log('🔍 [Checks Page] Chèques récupérés:', checks);
-      console.log('🔍 [Checks Page] Nombre total de chèques:', checks.length);
-      console.log('🔍 [Checks Page] Filtres appliqués:', checkFilters);
-      console.log('🔍 [Checks Page] Projet sélectionné:', selectedProject);
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== null && value !== '' && value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
 
-      setChecks(checks);
-
-    } catch (error: any) {
-      console.error('Error fetching checks:', error);
+      const response = await CheckService.getChecks(queryParams.toString());
+      if (response.success) {
+        setChecks(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des chèques:', error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les chèques",
@@ -125,202 +99,21 @@ const Checks = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedProject, filters, toast]);
 
-  // Charger les chèques au montage initial et quand user change
-  useEffect(() => {
-    if (user?.id) {
-      fetchChecks();
-    }
-  }, [user?.id]);
-
-  // Écouter les événements de création de chèques
-  useEffect(() => {
-    const unsubscribe = eventBus.on(EVENTS.CHECK_CREATED, (data) => {
-      console.log('🔄 Événement CHECK_CREATED reçu:', data);
-      // Rafraîchir la liste des chèques
-      fetchChecks();
-
-      // Afficher une notification si le chèque vient d'une dépense
-      if (data?.source === 'expense') {
-        toast({
-          title: "Chèque ajouté",
-          description: "Un nouveau chèque a été créé via une dépense",
-        });
-      }
-    });
-
-    // Écouter l'événement d'invalidation du cache
-    const handleCacheInvalidation = () => {
-      console.log('🔄 [CACHE] Événement d\'invalidation reçu, rechargement des chèques');
-      fetchChecks();
-    };
-
-    window.addEventListener('checks-cache-invalidated', handleCacheInvalidation);
-
-    // Nettoyer l'abonnement au démontage
-    return () => {
-      unsubscribe();
-      window.removeEventListener('checks-cache-invalidated', handleCacheInvalidation);
-    };
-  }, []);
-
-  // Handler pour les changements de filtres
-  const handleFiltersChange = async (newFilters: CheckFiltersState) => {
-    setFilters(newFilters);
-    // Attendre que l'état soit mis à jour puis recharger
-    if (user?.id) {
-      // Ne pas afficher le spinner pour les filtres, juste mettre à jour les données
-      try {
-        // Convertir les filtres au format attendu par le service
-        const checkFilters: CheckFilters = {
-          searchTerm: newFilters.searchTerm || undefined,
-          type_cheque: newFilters.type_cheque || undefined,
-          date_debut: newFilters.date_debut?.toISOString().split('T')[0] || undefined,
-          date_fin: newFilters.date_fin?.toISOString().split('T')[0] || undefined,
-          montant_min: newFilters.montant_min || undefined,
-          montant_max: newFilters.montant_max || undefined,
-          statut: newFilters.statut || undefined,
-          sortBy: newFilters.sortBy,
-          sortOrder: newFilters.sortOrder
-        };
-
-        // Récupérer les chèques via l'API backend
-        let checks: CheckRecord[];
-        if (selectedProject && selectedProject !== 'all') {
-          checks = await CheckService.getChecksByProject(selectedProject, checkFilters);
-        } else {
-          checks = await CheckService.getChecks(checkFilters);
-        }
-
-        setChecks(checks);
-      } catch (error: any) {
-        console.error('Error fetching checks:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les chèques",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  // Handler pour les changements de projet
-  const handleProjectChange = async (projectId: string) => {
+  const handleProjectChange = (projectId: string) => {
     setSelectedProject(projectId);
-    // Recharger immédiatement avec le nouveau projet
-    if (user?.id) {
-      // Ne pas afficher le spinner pour le changement de projet non plus
-      try {
-        // Convertir les filtres au format attendu par le service
-        const checkFilters: CheckFilters = {
-          searchTerm: filters.searchTerm || undefined,
-          type_cheque: filters.type_cheque || undefined,
-          date_debut: filters.date_debut?.toISOString().split('T')[0] || undefined,
-          date_fin: filters.date_fin?.toISOString().split('T')[0] || undefined,
-          montant_min: filters.montant_min || undefined,
-          montant_max: filters.montant_max || undefined,
-          statut: filters.statut || undefined,
-          sortBy: filters.sortBy,
-          sortOrder: filters.sortOrder
-        };
-
-        // Récupérer les chèques via l'API backend
-        let checks: CheckRecord[];
-        if (projectId && projectId !== 'all') {
-          checks = await CheckService.getChecksByProject(projectId, checkFilters);
-        } else {
-          checks = await CheckService.getChecks(checkFilters);
-        }
-
-        setChecks(checks);
-      } catch (error: any) {
-        console.error('Error fetching checks:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les chèques",
-          variant: "destructive",
-        });
-      }
-    }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    const formData = new FormData(e.currentTarget);
-    const checkData = {
-      project_id: formData.get('project_id') as string === 'none' ? undefined : formData.get('project_id') as string,
-      type_cheque: formData.get('type_cheque') as 'recu' | 'donne',
-      montant: parseFloat(formData.get('montant') as string),
-      numero_cheque: formData.get('numero_cheque') as string || undefined,
-      nom_beneficiaire: formData.get('nom_beneficiaire') as string || undefined,
-      nom_emetteur: formData.get('nom_emetteur') as string || undefined,
-      date_emission: formData.get('date_emission') as string,
-      date_encaissement: formData.get('date_encaissement') as string || undefined,
-      description: formData.get('description') as string || undefined,
-      statut: 'emis' as const,
-      facture_recue: false,
-    };
-
-    try {
-      const newCheck = await CheckService.createCheck(checkData);
-
-      toast({
-        title: "Succès",
-        description: "Chèque ajouté avec succès",
-      });
-
-      // Émettre un événement pour notifier la création du chèque
-      eventBus.emit(EVENTS.CHECK_CREATED, {
-        check: newCheck,
-        source: 'checks_page'
-      });
-
-      setIsDialogOpen(false);
-      fetchChecks();
-    } catch (error: any) {
-      console.error('Error creating check:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible d'ajouter le chèque",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const toggleFactureRecue = async (checkId: string, currentValue: boolean) => {
-    try {
-      await CheckService.updateCheck(checkId, { facture_recue: !currentValue });
-
-      setChecks(checks.map(check =>
-        check.id === checkId
-          ? { ...check, facture_recue: !currentValue }
-          : check
-      ));
-
-      toast({
-        title: "Succès",
-        description: `Statut facture mis à jour`,
-      });
-    } catch (error: any) {
-      console.error('Error updating check:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de mettre à jour le statut",
-        variant: "destructive",
-      });
-    }
+  const handleFiltersChange = (newFilters: CheckFiltersState) => {
+    setFilters(newFilters);
   };
 
   const handleMigrateProjectIds = async () => {
     setIsMigrating(true);
     try {
       const result = await CheckService.migrateProjectIds();
-
+      
       toast({
         title: "Migration terminée",
         description: `${result.updated_checks} chèques mis à jour avec succès`,
@@ -340,18 +133,155 @@ const Checks = () => {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const formData = new FormData(e.currentTarget);
+      const checkData = {
+        type_cheque: formData.get('type_cheque') as string,
+        montant: parseFloat(formData.get('montant') as string),
+        numero_cheque: formData.get('numero_cheque') as string,
+        nom_beneficiaire: formData.get('nom_beneficiaire') as string,
+        nom_emetteur: formData.get('nom_emetteur') as string,
+        date_emission: formData.get('date_emission') as string,
+        date_encaissement: formData.get('date_encaissement') as string || null,
+        description: formData.get('description') as string,
+        project_id: formData.get('project_id') === 'none' ? null : formData.get('project_id') as string,
+      };
+
+      const response = await CheckService.createCheck(checkData);
+      
+      if (response.success) {
+        toast({
+          title: "Chèque ajouté",
+          description: "Le chèque a été ajouté avec succès",
+        });
+        
+        setIsDialogOpen(false);
+        fetchChecks();
+        
+        // Reset form
+        (e.target as HTMLFormElement).reset();
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout du chèque:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'ajouter le chèque",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+    fetchChecks();
+  }, [fetchProjects, fetchChecks]);
+
+  useEffect(() => {
+    const unsubscribe = eventBus.subscribe(EVENTS.CHECK_CREATED, () => {
+      console.log('🔄 [EVENT] Chèque créé, rechargement de la liste');
+      fetchChecks();
+    });
+
+    // Écouter l'événement d'invalidation du cache
+    const handleCacheInvalidation = () => {
+      console.log('🔄 [CACHE] Événement d\'invalidation reçu, rechargement des chèques');
+      fetchChecks();
+    };
+
+    window.addEventListener('checks-cache-invalidated', handleCacheInvalidation);
+
+    // Cleanup
+    return () => {
+      unsubscribe();
+      window.removeEventListener('checks-cache-invalidated', handleCacheInvalidation);
+    };
+  }, [fetchChecks]);
+
+  // Filtrer les chèques par type
   const receivedChecks = checks.filter(check => check.type_cheque === 'recu');
   const givenChecks = checks.filter(check => check.type_cheque === 'donne');
 
-  if (isLoading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-    </div>;
-  }
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'MAD',
+      minimumFractionDigits: 2,
+    }).format(amount);
+  };
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR');
+  };
+
+  const getStatusBadge = (statut: string) => {
+    const statusConfig = {
+      'emis': { label: 'Émis', variant: 'secondary' as const },
+      'encaisse': { label: 'Encaissé', variant: 'default' as const },
+      'annule': { label: 'Annulé', variant: 'destructive' as const },
+      'en_attente': { label: 'En attente', variant: 'outline' as const },
+    };
+    
+    const config = statusConfig[statut as keyof typeof statusConfig] || { label: statut, variant: 'outline' as const };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const renderCheckCard = (check: CheckRecord) => (
+    <Card key={check.id} className="card-premium">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Chèque #{check.numero_cheque || 'N/A'}
+            </CardTitle>
+            <CardDescription>
+              {check.project_nom || check.projects?.nom || 'Général'}
+            </CardDescription>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-primary">
+              {formatAmount(check.montant)}
+            </div>
+            {getStatusBadge(check.statut)}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="font-medium">Bénéficiaire:</span>
+            <p className="text-muted-foreground">{check.nom_beneficiaire || 'N/A'}</p>
+          </div>
+          <div>
+            <span className="font-medium">Émetteur:</span>
+            <p className="text-muted-foreground">{check.nom_emetteur || 'N/A'}</p>
+          </div>
+          <div>
+            <span className="font-medium">Date d'émission:</span>
+            <p className="text-muted-foreground">{formatDate(check.date_emission)}</p>
+          </div>
+          {check.date_encaissement && (
+            <div>
+              <span className="font-medium">Date d'encaissement:</span>
+              <p className="text-muted-foreground">{formatDate(check.date_encaissement)}</p>
+            </div>
+          )}
+        </div>
+        {check.description && (
+          <div className="mt-3 pt-3 border-t">
+            <span className="font-medium text-sm">Description:</span>
+            <p className="text-sm text-muted-foreground mt-1">{check.description}</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -369,25 +299,30 @@ const Checks = () => {
               <div>
                 <h1 className="text-2xl font-bold">Gestion des Chèques</h1>
                 <p className="text-primary-foreground/80">
-                  Suivez vos chèques reçus et donnés
+                  Gérez vos chèques reçus et donnés
                 </p>
               </div>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex items-center gap-3">
               <Button
                 onClick={handleMigrateProjectIds}
                 disabled={isMigrating}
-                variant="outline"
-                className="border-warning text-warning hover:bg-warning/10"
+                variant="secondary"
+                size="sm"
+                className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
               >
                 {isMigrating ? (
-                  <div className="animate-spin h-4 w-4 border border-current border-t-transparent rounded-full mr-2" />
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Migration...
+                  </>
                 ) : (
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                  <>
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Migrer Projets
+                  </>
                 )}
-                {isMigrating ? 'Migration...' : 'Migrer Projets'}
               </Button>
-
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="btn-secondary-gradient">
@@ -407,11 +342,11 @@ const Checks = () => {
                       <Label htmlFor="type_cheque">Type de chèque *</Label>
                       <Select name="type_cheque" required>
                         <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner" />
+                          <SelectValue placeholder="Sélectionner le type" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="recu">Chèque reçu (Vente)</SelectItem>
-                          <SelectItem value="donne">Chèque donné (Dépense)</SelectItem>
+                          <SelectItem value="recu">Chèque Reçu</SelectItem>
+                          <SelectItem value="donne">Chèque Donné</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -447,7 +382,7 @@ const Checks = () => {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="numero_cheque">Numéro de chèque</Label>
-                          <Input
+                        <Input
                           id="numero_cheque"
                           name="numero_cheque"
                           placeholder="123456"
@@ -513,6 +448,7 @@ const Checks = () => {
                   </form>
                 </DialogContent>
               </Dialog>
+            </div>
           </div>
         </div>
       </header>
@@ -522,15 +458,15 @@ const Checks = () => {
         {/* Filters */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex gap-4 items-center mb-6">
-          <ProjectSelector
-            projects={projects}
-            selectedProject={selectedProject}
-            onProjectChange={handleProjectChange}
-            placeholder="Filtrer par projet"
-            showAllOption={true}
-            allOptionLabel="Tous les projets"
-            className="w-[300px]"
-          />
+            <ProjectSelector
+              projects={projects}
+              selectedProject={selectedProject}
+              onProjectChange={handleProjectChange}
+              placeholder="Filtrer par projet"
+              showAllOption={true}
+              allOptionLabel="Tous les projets"
+              className="w-[300px]"
+            />
           </div>
 
           <CheckFiltersComponent
@@ -549,183 +485,40 @@ const Checks = () => {
             </TabsList>
 
             <TabsContent value="received" className="space-y-4">
-            {receivedChecks.length === 0 ? (
-              <Card className="card-premium text-center py-12">
-                <CardContent>
-                  <CreditCard className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Aucun chèque reçu</h3>
-                  <p className="text-muted-foreground">
-                    Les chèques de vos clients apparaîtront ici
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {receivedChecks.map((check) => (
-                  <Card key={check.id} className="card-premium hover-lift">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <CreditCard className="h-5 w-5 text-success" />
-                            {check.montant.toLocaleString()} DH
-                            {check.payment_plan_id && (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                Paiement
-                              </Badge>
-                            )}
-                          </CardTitle>
-                          <CardDescription>
-                            {check.project_nom || 'Général'} • N° {check.numero_cheque}
-                            {check.client_nom && (
-                              <span className="text-success"> • Client: {check.client_nom}</span>
-                            )}
-                            {check.unite_numero && (
-                              <span className="text-primary"> • Unité: {check.unite_numero}</span>
-                            )}
-                            {check.banque && (
-                              <span className="text-muted-foreground"> • {check.banque}</span>
-                            )}
-                          </CardDescription>
-                        </div>
-                        <Badge className="badge-success">
-                          REÇU
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <div className="text-muted-foreground">Émetteur</div>
-                          <div className="font-semibold">
-                            {check.client_nom || check.nom_emetteur || 'Non spécifié'}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">Date d'émission</div>
-                          <div className="font-semibold">
-                            {check.date_emission ? new Date(check.date_emission).toLocaleDateString('fr-FR') : 'Non spécifiée'}
-                          </div>
-                        </div>
-                        {check.statut && (
-                          <div>
-                            <div className="text-muted-foreground">Statut</div>
-                            <div className="font-semibold">
-                              <Badge variant={
-                                check.statut === 'encaisse' ? 'default' :
-                                check.statut === 'annule' ? 'destructive' :
-                                'secondary'
-                              }>
-                                {check.statut === 'emis' ? 'Émis' :
-                                 check.statut === 'encaisse' ? 'Encaissé' :
-                                 check.statut === 'annule' ? 'Annulé' : check.statut}
-                              </Badge>
-                            </div>
-                          </div>
-                        )}
-                        {check.payment_plan_id && (
-                          <div>
-                            <div className="text-muted-foreground">Type</div>
-                            <div className="font-semibold text-blue-600">Chèque de paiement</div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {check.description && (
-                        <div className="text-sm">
-                          <div className="text-muted-foreground">Description</div>
-                          <div>{check.description}</div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="given" className="space-y-4">
-            {givenChecks.length === 0 ? (
-              <Card className="card-premium text-center py-12">
-                <CardContent>
-                  <CreditCard className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Aucun chèque donné</h3>
-                  <p className="text-muted-foreground">
-                    Les chèques donnés à vos fournisseurs apparaîtront ici
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {givenChecks.map((check) => (
-                  <Card key={check.id} className="card-premium hover-lift">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <CreditCard className="h-5 w-5 text-warning" />
-                            {check.montant.toLocaleString()} DH
-                          </CardTitle>
-                          <CardDescription>
-                            {check.project_nom || 'Général'} • N° {check.numero_cheque}
-                            {check.expense_nom && (
-                              <span className="text-primary"> • Dépense: {check.expense_nom}</span>
-                            )}
-                            {check.client_nom && (
-                              <span className="text-success"> • Client: {check.client_nom}</span>
-                            )}
-                          </CardDescription>
-                        </div>
-                        <Badge className="badge-warning">
-                          DONNÉ
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <div className="text-muted-foreground">Bénéficiaire</div>
-                          <div className="font-semibold">{check.nom_beneficiaire || 'Non spécifié'}</div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">Date d'émission</div>
-                          <div className="font-semibold">{new Date(check.date_emission).toLocaleDateString('fr-FR')}</div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2 p-3 bg-muted/30 rounded-lg">
-                        <Checkbox
-                          id={`facture-${check.id}`}
-                          checked={check.facture_recue}
-                          onCheckedChange={() => toggleFactureRecue(check.id, check.facture_recue)}
-                        />
-                        <Label 
-                          htmlFor={`facture-${check.id}`} 
-                          className={`flex-1 cursor-pointer ${check.facture_recue ? 'text-success' : 'text-muted-foreground'}`}
-                        >
-                          {check.facture_recue ? (
-                            <span className="flex items-center gap-2">
-                              <Check className="h-4 w-4" />
-                              Facture reçue
-                            </span>
-                          ) : (
-                            'Facture non reçue'
-                          )}
-                        </Label>
-                      </div>
-                      
-                      {check.description && (
-                        <div className="text-sm">
-                          <div className="text-muted-foreground">Description</div>
-                          <div>{check.description}</div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
+              {receivedChecks.length === 0 ? (
+                <Card className="card-premium text-center py-12">
+                  <CardContent>
+                    <CreditCard className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Aucun chèque reçu</h3>
+                    <p className="text-muted-foreground">
+                      Les chèques reçus de vos clients apparaîtront ici.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {receivedChecks.map(renderCheckCard)}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="given" className="space-y-4">
+              {givenChecks.length === 0 ? (
+                <Card className="card-premium text-center py-12">
+                  <CardContent>
+                    <CreditCard className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Aucun chèque donné</h3>
+                    <p className="text-muted-foreground">
+                      Les chèques que vous avez donnés apparaîtront ici.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {givenChecks.map(renderCheckCard)}
+                </div>
+              )}
+            </TabsContent>
           </Tabs>
         </div>
       </main>
