@@ -30,6 +30,7 @@ const Projects = () => {
   // Charger les projets avec filtres
   const loadProjects = useCallback(async (currentFilters: ProjectFilters) => {
     try {
+      console.log('🔄 Chargement des projets avec filtres:', currentFilters);
       setIsLoadingProjects(true);
       const data = await ProjectService.getFilteredProjects(currentFilters);
       setFilteredProjects(data);
@@ -50,7 +51,7 @@ const Projects = () => {
     if (user) {
       loadProjects(filters);
     }
-  }, [user, filters, loadProjects]);
+  }, [user, filters]); // Retirer loadProjects des dépendances
 
   // Gestionnaire de changement de filtres
   const handleFiltersChange = useCallback((newFilters: ProjectFiltersState) => {

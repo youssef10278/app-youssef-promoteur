@@ -47,14 +47,24 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
   const [localFilters, setLocalFilters] = useState<ProjectFiltersState>(filters);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  // Debounce pour la recherche
+  // Synchroniser les filtres locaux avec les filtres externes
+  useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters]);
+
+  // Debounce pour la recherche avec comparaison pour éviter les appels inutiles
   useEffect(() => {
     const timer = setTimeout(() => {
-      onFiltersChange(localFilters);
-    }, 300);
+      // Vérifier si les filtres ont vraiment changé
+      const hasChanged = JSON.stringify(localFilters) !== JSON.stringify(filters);
+      if (hasChanged) {
+        console.log('🔍 Filtres changés, mise à jour:', localFilters);
+        onFiltersChange(localFilters);
+      }
+    }, 500); // Augmenter le délai pour réduire les requêtes
 
     return () => clearTimeout(timer);
-  }, [localFilters, onFiltersChange]);
+  }, [localFilters, onFiltersChange, filters]);
 
   const updateFilter = (key: keyof ProjectFiltersState, value: any) => {
     setLocalFilters(prev => ({
