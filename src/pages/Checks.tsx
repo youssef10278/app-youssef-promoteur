@@ -396,123 +396,123 @@ const Checks = () => {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Nouveau Chèque</DialogTitle>
-                  <DialogDescription>
-                    Enregistrer un nouveau chèque
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="type_cheque">Type de chèque *</Label>
-                    <Select name="type_cheque" required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="recu">Chèque reçu (Vente)</SelectItem>
-                        <SelectItem value="donne">Chèque donné (Dépense)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="project_id">Projet (optionnel)</Label>
-                    <Select name="project_id">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner un projet" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Aucun projet</SelectItem>
-                        {projects.map((project) => (
-                          <SelectItem key={project.id} value={project.id}>
-                            {project.nom}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
+                  <DialogHeader>
+                    <DialogTitle>Nouveau Chèque</DialogTitle>
+                    <DialogDescription>
+                      Enregistrer un nouveau chèque
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="montant">Montant (DH) *</Label>
+                      <Label htmlFor="type_cheque">Type de chèque *</Label>
+                      <Select name="type_cheque" required>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="recu">Chèque reçu (Vente)</SelectItem>
+                          <SelectItem value="donne">Chèque donné (Dépense)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="project_id">Projet (optionnel)</Label>
+                      <Select name="project_id">
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner un projet" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Aucun projet</SelectItem>
+                          {projects.map((project) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.nom}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="montant">Montant (DH) *</Label>
+                        <Input
+                          id="montant"
+                          name="montant"
+                          type="number"
+                          step="0.01"
+                          placeholder="50000"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="numero_cheque">Numéro de chèque</Label>
+                          <Input
+                          id="numero_cheque"
+                          name="numero_cheque"
+                          placeholder="123456"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="nom_beneficiaire">Nom du bénéficiaire</Label>
                       <Input
-                        id="montant"
-                        name="montant"
-                        type="number"
-                        step="0.01"
-                        placeholder="50000"
-                        required
+                        id="nom_beneficiaire"
+                        name="nom_beneficiaire"
+                        placeholder="Nom de la personne/société"
                       />
                     </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="numero_cheque">Numéro de chèque</Label>
+                      <Label htmlFor="nom_emetteur">Nom de l'émetteur</Label>
                       <Input
-                        id="numero_cheque"
-                        name="numero_cheque"
-                        placeholder="123456"
+                        id="nom_emetteur"
+                        name="nom_emetteur"
+                        placeholder="Nom de la personne/société"
                       />
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="nom_beneficiaire">Nom du bénéficiaire</Label>
-                    <Input
-                      id="nom_beneficiaire"
-                      name="nom_beneficiaire"
-                      placeholder="Nom de la personne/société"
-                    />
-                  </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="date_emission">Date d'émission *</Label>
+                        <Input
+                          id="date_emission"
+                          name="date_emission"
+                          type="date"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="date_encaissement">Date d'encaissement</Label>
+                        <Input
+                          id="date_encaissement"
+                          name="date_encaissement"
+                          type="date"
+                        />
+                      </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="nom_emetteur">Nom de l'émetteur</Label>
-                    <Input
-                      id="nom_emetteur"
-                      name="nom_emetteur"
-                      placeholder="Nom de la personne/société"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="date_emission">Date d'émission *</Label>
+                      <Label htmlFor="description">Description</Label>
                       <Input
-                        id="date_emission"
-                        name="date_emission"
-                        type="date"
-                        required
+                        id="description"
+                        name="description"
+                        placeholder="Détails du chèque"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="date_encaissement">Date d'encaissement</Label>
-                      <Input
-                        id="date_encaissement"
-                        name="date_encaissement"
-                        type="date"
-                      />
+
+                    <div className="flex gap-2 pt-4">
+                      <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
+                        Annuler
+                      </Button>
+                      <Button type="submit" className="flex-1 btn-hero" disabled={isSubmitting}>
+                        {isSubmitting ? "Ajout..." : "Ajouter"}
+                      </Button>
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Input
-                      id="description"
-                      name="description"
-                      placeholder="Détails du chèque"
-                    />
-                  </div>
-
-                  <div className="flex gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
-                      Annuler
-                    </Button>
-                    <Button type="submit" className="flex-1 btn-hero" disabled={isSubmitting}>
-                      {isSubmitting ? "Ajout..." : "Ajouter"}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+                  </form>
+                </DialogContent>
+              </Dialog>
           </div>
         </div>
       </header>
