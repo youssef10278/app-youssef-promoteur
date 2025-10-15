@@ -521,7 +521,7 @@ const Checks = () => {
       <main>
         {/* Filters */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex gap-4 items-center mb-6">
+          <div className="flex gap-4 items-center mb-6">
           <ProjectSelector
             projects={projects}
             selectedProject={selectedProject}
@@ -531,24 +531,24 @@ const Checks = () => {
             allOptionLabel="Tous les projets"
             className="w-[300px]"
           />
-        </div>
+          </div>
 
-        <CheckFiltersComponent
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          resultCount={checks.length}
-        />
+          <CheckFiltersComponent
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            resultCount={checks.length}
+          />
         </div>
 
         {/* Tabs Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="received" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="received">Chèques Reçus ({receivedChecks.length})</TabsTrigger>
-            <TabsTrigger value="given">Chèques Donnés ({givenChecks.length})</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="received" className="space-y-4">
+          <Tabs defaultValue="received" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="received">Chèques Reçus ({receivedChecks.length})</TabsTrigger>
+              <TabsTrigger value="given">Chèques Donnés ({givenChecks.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="received" className="space-y-4">
             {receivedChecks.length === 0 ? (
               <Card className="card-premium text-center py-12">
                 <CardContent>
@@ -726,7 +726,7 @@ const Checks = () => {
               </div>
             )}
           </TabsContent>
-        </Tabs>
+          </Tabs>
         </div>
       </main>
     </div>
