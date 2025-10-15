@@ -119,7 +119,8 @@ export const DataImportExport: React.FC = () => {
 
       if (fileContent.trim() === 'undefined' || fileContent.trim() === 'null') {
         console.error('🚨 PROBLÈME DÉTECTÉ: Le backend a renvoyé undefined/null au lieu de JSON');
-        throw new Error('Le fichier contient des données invalides (undefined/null) - problème backend détecté');
+        console.error('📄 Contenu reçu:', fileContent);
+        throw new Error('Le fichier contient des données invalides (undefined/null) - problème backend détecté. Veuillez réessayer l\'export.');
       }
 
       // Tentative de parsing JSON avec gestion d'erreur détaillée
