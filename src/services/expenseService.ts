@@ -10,9 +10,10 @@ export class ExpenseService {
       // Construire les paramètres de requête
       const params: Record<string, any> = {};
 
-      if (projectId && projectId !== 'all') {
-        params.projectId = projectId;
-      }
+      // Ne pas ajouter projectId aux query params car il est déjà dans l'URL
+      // if (projectId && projectId !== 'all') {
+      //   params.projectId = projectId;
+      // }
 
       if (filters?.searchTerm) {
         params.search = filters.searchTerm;

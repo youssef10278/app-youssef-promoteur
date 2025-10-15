@@ -207,7 +207,8 @@ export const expenseFiltersSchema = Joi.object({
   date_debut: Joi.date().optional(),
   date_fin: Joi.date().optional(),
   montant_min: Joi.number().min(0).optional(),
-  montant_max: Joi.number().min(0).optional()
+  montant_max: Joi.number().min(0).optional(),
+  projectId: Joi.string().uuid().optional() // Permettre projectId dans les query params
 });
 
 // Fonction utilitaire pour valider les données
