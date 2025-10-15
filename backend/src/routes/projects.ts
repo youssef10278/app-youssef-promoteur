@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { query } from '../config/database';
-import { validate, createProjectSchema, updateProjectSchema } from '../utils/validation';
+import { validate, createProjectSchema, updateProjectSchema, projectFiltersSchema } from '../utils/validation';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import { ApiResponse, Project, CreateProjectRequest } from '../types';
@@ -50,17 +50,79 @@ router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
   res.json(response);
 }));
 
-// Obtenir tous les projets de l'utilisateur
+// Obtenir tous les projets de l'utilisateur avec filtres
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
+  console.log('🔍 GET /projects - userId:', req.user!.userId, 'query:', req.query);
+
+  // Valider les filtres
+  const filters = validate(projectFiltersSchema, req.query);
+
+  // Construction de la requête WHERE
+  const whereConditions = ['user_id = $1'];
+  const queryParams = [req.user!.userId];
+  let paramIndex = 2;
+
+  // Recherche textuelle (nom, localisation, société)
+  if (filters.search) {
+    whereConditions.push(`(
+      nom ILIKE $${paramIndex} OR
+      localisation ILIKE $${paramIndex} OR
+      societe ILIKE $${paramIndex}
+    )`);
+    queryParams.push(`%${filters.search}%`);
+    paramIndex++;
+  }
+
+  // Filtres de surface
+  if (filters.minSurface) {
+    whereConditions.push(`surface_totale >= $${paramIndex}`);
+    queryParams.push(filters.minSurface);
+    paramIndex++;
+  }
+
+  if (filters.maxSurface) {
+    whereConditions.push(`surface_totale <= $${paramIndex}`);
+    queryParams.push(filters.maxSurface);
+    paramIndex++;
+  }
+
+  // Filtres de lots
+  if (filters.minLots) {
+    whereConditions.push(`nombre_lots >= $${paramIndex}`);
+    queryParams.push(filters.minLots);
+    paramIndex++;
+  }
+
+  if (filters.maxLots) {
+    whereConditions.push(`nombre_lots <= $${paramIndex}`);
+    queryParams.push(filters.maxLots);
+    paramIndex++;
+  }
+
+  // Construction de la clause ORDER BY
+  const validSortColumns = {
+    'created_at': 'created_at',
+    'nom': 'nom',
+    'localisation': 'localisation',
+    'societe': 'societe',
+    'surface_totale': 'surface_totale',
+    'nombre_lots': 'nombre_lots'
+  };
+
+  const sortColumn = validSortColumns[filters.sortBy as keyof typeof validSortColumns] || 'created_at';
+  const sortOrder = filters.sortOrder === 'asc' ? 'ASC' : 'DESC';
+
   const result = await query(
-    `SELECT id, user_id, nom, localisation, societe, surface_totale, 
+    `SELECT id, user_id, nom, localisation, societe, surface_totale,
             nombre_lots, nombre_appartements, nombre_garages, description,
             created_at, updated_at
-     FROM projects 
-     WHERE user_id = $1 
-     ORDER BY created_at DESC`,
-    [req.user!.userId]
+     FROM projects
+     WHERE ${whereConditions.join(' AND ')}
+     ORDER BY ${sortColumn} ${sortOrder}`,
+    queryParams
   );
+
+  console.log('🔍 Projets trouvés:', result.rows.length, 'avec filtres:', filters);
 
   const response: ApiResponse = {
     success: true,

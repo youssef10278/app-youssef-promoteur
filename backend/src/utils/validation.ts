@@ -211,6 +211,17 @@ export const expenseFiltersSchema = Joi.object({
   projectId: Joi.string().uuid().optional() // Permettre projectId dans les query params
 });
 
+// Schéma de validation pour les filtres des projets
+export const projectFiltersSchema = Joi.object({
+  search: Joi.string().max(200).optional(),
+  sortBy: Joi.string().valid('created_at', 'nom', 'localisation', 'societe', 'surface_totale', 'nombre_lots').default('created_at'),
+  sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
+  minSurface: Joi.number().min(0).optional(),
+  maxSurface: Joi.number().min(0).optional(),
+  minLots: Joi.number().integer().min(0).optional(),
+  maxLots: Joi.number().integer().min(0).optional()
+});
+
 // Fonction utilitaire pour valider les données
 export const validate = (schema: Joi.ObjectSchema, data: any) => {
   const { error, value } = schema.validate(data, { abortEarly: false });
