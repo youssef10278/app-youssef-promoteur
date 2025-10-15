@@ -183,7 +183,7 @@ const Checks = () => {
   }, [fetchProjects, fetchChecks]);
 
   useEffect(() => {
-    const unsubscribe = eventBus.subscribe(EVENTS.CHECK_CREATED, () => {
+    const unsubscribe = eventBus.on(EVENTS.CHECK_CREATED, () => {
       console.log('🔄 [EVENT] Chèque créé, rechargement de la liste');
       fetchChecks();
     });

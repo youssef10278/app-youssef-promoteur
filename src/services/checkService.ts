@@ -55,73 +55,93 @@ export class CheckService {
   /**
    * Récupérer tous les chèques avec filtres
    */
-  static async getChecks(filters: CheckFilters = {}): Promise<Check[]> {
+  static async getChecks(filters: CheckFilters | string = {}): Promise<{ success: boolean; data: Check[] }> {
     try {
-      const params = new URLSearchParams();
+      let queryString = '';
 
-      if (filters.type_cheque) params.append('type', filters.type_cheque);
-      if (filters.statut) params.append('statut', filters.statut);
-      if (filters.searchTerm) {
-        // Pour la recherche, on peut filtrer côté client ou ajouter un paramètre search
-        // Pour l'instant, on laisse le filtrage côté client
+      // Si filters est une string (query params), l'utiliser directement
+      if (typeof filters === 'string') {
+        queryString = filters;
+      } else {
+        // Sinon, construire les paramètres à partir de l'objet filters
+        const params = new URLSearchParams();
+        if (filters.type_cheque) params.append('type', filters.type_cheque);
+        if (filters.statut) params.append('statut', filters.statut);
+        queryString = params.toString();
       }
 
-      console.log('🔍 [CheckService] Appel API avec params:', params.toString());
-      const response = await apiClient.get(`/checks?${params.toString()}`);
-      let checks = response.data || [];
+      console.log('🔍 [CheckService] Appel API avec params:', queryString);
+      const response = await apiClient.get(`/checks${queryString ? '?' + queryString : ''}`);
 
-      console.log('🔍 [CheckService] Réponse API brute:', checks);
-      console.log('🔍 [CheckService] Nombre de chèques reçus de l\'API:', checks.length);
-
-      // Filtrage côté client pour les critères non supportés par l'API
-      if (filters.searchTerm) {
-        const searchTerm = filters.searchTerm.toLowerCase();
-        checks = checks.filter((check: Check) => 
-          check.numero_cheque?.toLowerCase().includes(searchTerm) ||
-          check.nom_beneficiaire?.toLowerCase().includes(searchTerm) ||
-          check.nom_emetteur?.toLowerCase().includes(searchTerm) ||
-          check.description?.toLowerCase().includes(searchTerm) ||
-          check.project_nom?.toLowerCase().includes(searchTerm)
-        );
+      // Vérifier la structure de la réponse
+      if (response.data && response.data.success !== undefined) {
+        // Réponse avec structure { success: boolean, data: Check[] }
+        console.log('🔍 [CheckService] Réponse API structurée:', response.data);
+        return response.data;
+      } else {
+        // Réponse directe avec array de chèques
+        const checks = response.data || [];
+        console.log('🔍 [CheckService] Réponse API directe:', checks);
+        return { success: true, data: checks };
       }
 
-      if (filters.date_debut) {
-        checks = checks.filter((check: Check) => 
-          new Date(check.date_emission) >= new Date(filters.date_debut!)
-        );
+      // Appliquer les filtres côté client seulement si filters est un objet
+      if (typeof filters === 'object' && filters !== null) {
+        let checks = response.data?.data || response.data || [];
+
+        // Filtrage côté client pour les critères non supportés par l'API
+        if (filters.searchTerm) {
+          const searchTerm = filters.searchTerm.toLowerCase();
+          checks = checks.filter((check: Check) =>
+            check.numero_cheque?.toLowerCase().includes(searchTerm) ||
+            check.nom_beneficiaire?.toLowerCase().includes(searchTerm) ||
+            check.nom_emetteur?.toLowerCase().includes(searchTerm) ||
+            check.description?.toLowerCase().includes(searchTerm) ||
+            check.project_nom?.toLowerCase().includes(searchTerm)
+          );
+        }
+
+        if (filters.date_debut) {
+          checks = checks.filter((check: Check) =>
+            new Date(check.date_emission) >= new Date(filters.date_debut!)
+          );
+        }
+
+        if (filters.date_fin) {
+          checks = checks.filter((check: Check) =>
+            new Date(check.date_emission) <= new Date(filters.date_fin!)
+          );
+        }
+
+        if (filters.montant_min) {
+          checks = checks.filter((check: Check) => check.montant >= filters.montant_min!);
+        }
+
+        if (filters.montant_max) {
+          checks = checks.filter((check: Check) => check.montant <= filters.montant_max!);
+        }
+
+        // Tri
+        const sortBy = filters.sortBy || 'created_at';
+        const sortOrder = filters.sortOrder || 'desc';
+
+        checks.sort((a: Check, b: Check) => {
+          const aValue = a[sortBy as keyof Check];
+          const bValue = b[sortBy as keyof Check];
+
+          if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+          return 0;
+        });
+
+        console.log('🔍 [CheckService] Chèques finaux après filtrage et tri:', checks);
+        console.log('🔍 [CheckService] Nombre final de chèques:', checks.length);
+
+        return { success: true, data: checks };
       }
 
-      if (filters.date_fin) {
-        checks = checks.filter((check: Check) => 
-          new Date(check.date_emission) <= new Date(filters.date_fin!)
-        );
-      }
-
-      if (filters.montant_min) {
-        checks = checks.filter((check: Check) => check.montant >= filters.montant_min!);
-      }
-
-      if (filters.montant_max) {
-        checks = checks.filter((check: Check) => check.montant <= filters.montant_max!);
-      }
-
-      // Tri
-      const sortBy = filters.sortBy || 'created_at';
-      const sortOrder = filters.sortOrder || 'desc';
-      
-      checks.sort((a: Check, b: Check) => {
-        const aValue = a[sortBy as keyof Check];
-        const bValue = b[sortBy as keyof Check];
-
-        if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-        return 0;
-      });
-
-      console.log('🔍 [CheckService] Chèques finaux après filtrage et tri:', checks);
-      console.log('🔍 [CheckService] Nombre final de chèques:', checks.length);
-
-      return checks;
+      // Si filters est une string, retourner la réponse telle quelle
+      return response.data?.success !== undefined ? response.data : { success: true, data: response.data || [] };
     } catch (error) {
       console.error('Erreur lors de la récupération des chèques:', error);
       throw error;
@@ -166,10 +186,16 @@ export class CheckService {
   /**
    * Créer un nouveau chèque
    */
-  static async createCheck(checkData: CreateCheckData): Promise<Check> {
+  static async createCheck(checkData: CreateCheckData): Promise<{ success: boolean; data: Check }> {
     try {
       const response = await apiClient.post('/checks', checkData);
-      return response.data;
+
+      // Vérifier la structure de la réponse
+      if (response.data && response.data.success !== undefined) {
+        return response.data;
+      } else {
+        return { success: true, data: response.data };
+      }
     } catch (error) {
       console.error('Erreur lors de la création du chèque:', error);
       throw error;

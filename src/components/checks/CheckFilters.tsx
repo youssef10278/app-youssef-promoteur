@@ -16,8 +16,11 @@ export interface CheckFiltersState {
   montant_min: number | null;
   montant_max: number | null;
   statut: string;
-  sortBy: 'created_at' | 'montant' | 'date_emission' | 'numero_cheque';
-  sortOrder: 'asc' | 'desc';
+  nom_beneficiaire: string;
+  nom_emetteur: string;
+  numero_cheque: string;
+  sortBy?: 'created_at' | 'montant' | 'date_emission' | 'numero_cheque';
+  sortOrder?: 'asc' | 'desc';
 }
 
 interface CheckFiltersProps {
@@ -76,6 +79,9 @@ export const CheckFilters: React.FC<CheckFiltersProps> = ({
       montant_min: null,
       montant_max: null,
       statut: '',
+      nom_beneficiaire: '',
+      nom_emetteur: '',
+      numero_cheque: '',
       sortBy: 'created_at',
       sortOrder: 'desc'
     };
@@ -103,7 +109,10 @@ export const CheckFilters: React.FC<CheckFiltersProps> = ({
     filters.date_fin,
     filters.montant_min,
     filters.montant_max,
-    filters.statut
+    filters.statut,
+    filters.nom_beneficiaire,
+    filters.nom_emetteur,
+    filters.numero_cheque
   ].filter(Boolean).length;
 
   const formatDate = (date: Date | null) => {
