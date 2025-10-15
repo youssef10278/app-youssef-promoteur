@@ -70,6 +70,11 @@ const Checks = () => {
     }
   }, []);
 
+  // Charger les projets au montage du composant
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
   const fetchChecks = useCallback(async () => {
     try {
       setIsLoading(true);
