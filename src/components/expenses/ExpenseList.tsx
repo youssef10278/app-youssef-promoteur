@@ -122,7 +122,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-muted-foreground">
                   <div className="flex items-center space-x-2">
                     <Building2 className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{expense.projects?.nom || 'Projet non défini'}</span>
+                    <span className="truncate">{expense.project_nom || expense.projects?.nom || 'Projet non défini'}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4 flex-shrink-0" />

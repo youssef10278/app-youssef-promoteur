@@ -32,7 +32,8 @@ export interface Expense {
   created_at: string;
   project_id: string;
   user_id: string;
-  projects: { nom: string };
+  projects?: { nom: string };
+  project_nom?: string; // Nom du projet retourné par le backend
   cheques?: CheckData[];
   // Nouveaux champs pour les paiements progressifs
   statut_paiement?: 'non_paye' | 'partiellement_paye' | 'paye';

@@ -687,6 +687,13 @@ router.post('/create-simple', asyncHandler(async (req: Request, res: Response) =
     throw createError('Projet non trouvé', 404);
   }
 
+  console.log('🔍 [CREATE-SIMPLE] Création dépense:', {
+    project_id: validatedData.project_id,
+    user_id: req.user!.userId,
+    nom: validatedData.nom,
+    description: validatedData.description
+  });
+
   const result = await query(
     `INSERT INTO expenses (
        project_id, user_id, nom, description, statut,
@@ -702,6 +709,8 @@ router.post('/create-simple', asyncHandler(async (req: Request, res: Response) =
       validatedData.description || ''
     ]
   );
+
+  console.log('🔍 [CREATE-SIMPLE] Dépense créée:', result.rows[0]);
 
   const response: ApiResponse = {
     success: true,
