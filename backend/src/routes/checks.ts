@@ -99,6 +99,32 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   res.json(response);
 }));
 
+// Migration unique pour corriger les chèques sans project_id
+router.post('/migrate-project-ids', asyncHandler(async (req: Request, res: Response) => {
+  console.log('🔧 [MIGRATION] Début de la migration des project_id pour les chèques');
+
+  const result = await query(
+    `UPDATE checks
+     SET project_id = (SELECT project_id FROM expenses WHERE id = checks.expense_id)
+     WHERE project_id IS NULL AND expense_id IS NOT NULL AND user_id = $1
+     RETURNING id, expense_id, project_id`,
+    [req.user!.userId]
+  );
+
+  console.log(`🔧 [MIGRATION] ${result.rows.length} chèques mis à jour:`, result.rows);
+
+  const response: ApiResponse = {
+    success: true,
+    data: {
+      updated_checks: result.rows.length,
+      checks: result.rows
+    },
+    message: `${result.rows.length} chèques mis à jour avec succès`
+  };
+
+  res.json(response);
+}));
+
 // Route de debug pour un chèque spécifique
 router.get('/debug/:numero', asyncHandler(async (req: Request, res: Response) => {
   const { numero } = req.params;

@@ -36,6 +36,7 @@ import { ExpensePaymentFormData, PaymentMode, PAYMENT_MODES, ExpensePayment } fr
 import { formatAmount } from '@/utils/payments';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/integrations/api/client';
+import { CheckService } from '@/services/checkService';
 
 interface AddExpensePaymentModalNewProps {
   expense: {
@@ -324,6 +325,12 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
           title: editingPayment ? "Paiement modifié" : "Paiement ajouté",
           description: `Paiement de ${formatAmount(formData.montant_paye)} ${editingPayment ? 'modifié' : 'ajouté'} avec succès.`,
         });
+
+        // Invalider le cache des chèques si un chèque a été créé
+        if (formData.mode_paiement === 'cheque' || formData.mode_paiement === 'cheque_espece') {
+          console.log('🔄 [CACHE] Invalidation du cache des chèques après création de paiement');
+          CheckService.invalidateCache();
+        }
 
         resetForm();
         onSuccess();

@@ -230,6 +230,27 @@ export class CheckService {
   }
 
   /**
+   * Migrer les project_id manquants pour les chèques existants
+   */
+  static async migrateProjectIds(): Promise<any> {
+    try {
+      const response = await apiClient.post('/checks/migrate-project-ids');
+      return response.data;
+    } catch (error) {
+      console.error('Erreur lors de la migration des project_id:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Invalider le cache et forcer le rafraîchissement des chèques
+   */
+  static invalidateCache(): void {
+    // Émettre un événement personnalisé pour notifier les composants
+    window.dispatchEvent(new CustomEvent('checks-cache-invalidated'));
+  }
+
+  /**
    * Appliquer les filtres côté client
    */
   private static applyClientFilters(checks: Check[], filters: CheckFilters): Check[] {

@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CreditCard, Plus, ArrowLeft, Building2, Check } from 'lucide-react';
+import { CreditCard, Plus, ArrowLeft, Building2, Check, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CheckFilters as CheckFiltersComponent, CheckFiltersState } from '@/components/checks/CheckFilters';
 import { ProjectSelector } from '@/components/common/ProjectSelector';
@@ -38,6 +38,7 @@ const Checks = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
   const { toast } = useToast();
 
   // États pour les filtres
@@ -149,8 +150,19 @@ const Checks = () => {
       }
     });
 
+    // Écouter l'événement d'invalidation du cache
+    const handleCacheInvalidation = () => {
+      console.log('🔄 [CACHE] Événement d\'invalidation reçu, rechargement des chèques');
+      fetchChecks();
+    };
+
+    window.addEventListener('checks-cache-invalidated', handleCacheInvalidation);
+
     // Nettoyer l'abonnement au démontage
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      window.removeEventListener('checks-cache-invalidated', handleCacheInvalidation);
+    };
   }, []);
 
   // Handler pour les changements de filtres
@@ -284,8 +296,8 @@ const Checks = () => {
     try {
       await CheckService.updateCheck(checkId, { facture_recue: !currentValue });
 
-      setChecks(checks.map(check => 
-        check.id === checkId 
+      setChecks(checks.map(check =>
+        check.id === checkId
           ? { ...check, facture_recue: !currentValue }
           : check
       ));
@@ -301,6 +313,30 @@ const Checks = () => {
         description: "Impossible de mettre à jour le statut",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleMigrateProjectIds = async () => {
+    setIsMigrating(true);
+    try {
+      const result = await CheckService.migrateProjectIds();
+
+      toast({
+        title: "Migration terminée",
+        description: `${result.updated_checks} chèques mis à jour avec succès`,
+      });
+
+      // Recharger les chèques pour voir les changements
+      fetchChecks();
+    } catch (error) {
+      console.error('Erreur lors de la migration:', error);
+      toast({
+        title: "Erreur de migration",
+        description: "Impossible de migrer les project_id des chèques",
+        variant: "destructive",
+      });
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -337,14 +373,29 @@ const Checks = () => {
                 </p>
               </div>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="btn-secondary-gradient">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Ajouter Chèque
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
+            <div className="flex space-x-3">
+              <Button
+                onClick={handleMigrateProjectIds}
+                disabled={isMigrating}
+                variant="outline"
+                className="border-warning text-warning hover:bg-warning/10"
+              >
+                {isMigrating ? (
+                  <div className="animate-spin h-4 w-4 border border-current border-t-transparent rounded-full mr-2" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                {isMigrating ? 'Migration...' : 'Migrer Projets'}
+              </Button>
+
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="btn-secondary-gradient">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Ajouter Chèque
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle>Nouveau Chèque</DialogTitle>
                   <DialogDescription>

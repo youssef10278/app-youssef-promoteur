@@ -712,14 +712,6 @@ router.post('/create-simple', asyncHandler(async (req: Request, res: Response) =
 
   console.log('🔍 [CREATE-SIMPLE] Dépense créée:', result.rows[0]);
 
-  // Migration temporaire : Mettre à jour les chèques sans project_id
-  await query(
-    `UPDATE checks
-     SET project_id = (SELECT project_id FROM expenses WHERE id = checks.expense_id)
-     WHERE project_id IS NULL AND expense_id IS NOT NULL`,
-    []
-  );
-
   const response: ApiResponse = {
     success: true,
     data: result.rows[0],
