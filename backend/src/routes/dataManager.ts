@@ -19,15 +19,30 @@ router.get('/export-all', async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: 'Utilisateur non authentifié' });
     }
 
-    const [projects, sales, expenses, checks, payments] = await Promise.all([
-      query('SELECT * FROM projects WHERE user_id = $1 ORDER BY created_at DESC', [userId]),
-      query('SELECT * FROM sales WHERE user_id = $1 ORDER BY created_at DESC', [userId]),
-      query('SELECT * FROM expenses WHERE user_id = $1 ORDER BY created_at DESC', [userId]),
-      query('SELECT * FROM checks WHERE user_id = $1 ORDER BY created_at DESC', [userId]),
-      query('SELECT * FROM expense_payments WHERE user_id = $1 ORDER BY created_at DESC', [userId])
-    ]);
+    let projects, sales, expenses, checks, payments;
+
+    try {
+      [projects, sales, expenses, checks, payments] = await Promise.all([
+        query('SELECT * FROM projects WHERE user_id = $1 ORDER BY created_at DESC', [userId]),
+        query('SELECT * FROM sales WHERE user_id = $1 ORDER BY created_at DESC', [userId]),
+        query('SELECT * FROM expenses WHERE user_id = $1 ORDER BY created_at DESC', [userId]),
+        query('SELECT * FROM checks WHERE user_id = $1 ORDER BY created_at DESC', [userId]),
+        query('SELECT * FROM expense_payments WHERE user_id = $1 ORDER BY created_at DESC', [userId])
+      ]);
+    } catch (queryError) {
+      logger.error('❌ ERREUR dans les requêtes SQL:', queryError);
+      return res.status(500).json({ success: false, message: 'Erreur de base de données' });
+    }
 
     // PROTECTION CONTRE LES ROWS UNDEFINED
+    logger.info('[EXPORT] Résultats requêtes bruts:', {
+      projects: !!projects,
+      sales: !!sales,
+      expenses: !!expenses,
+      checks: !!checks,
+      payments: !!payments
+    });
+
     console.log('[EXPORT] Résultats requêtes:', {
       projects: projects?.rows?.length || 0,
       sales: sales?.rows?.length || 0,
@@ -59,18 +74,36 @@ router.get('/export-all', async (req: Request, res: Response) => {
     });
 
     // DIAGNOSTIC DÉTAILLÉ comme suggéré par l'expert
-    console.log('[EXPORT] exportData:', JSON.stringify(exportData, null, 2));
-    if (!exportData) {
-      console.error('[EXPORT ERROR] exportData est undefined ou null');
-      return res.status(500).json({ success: false, message: 'Données d\'export undefined' });
+    logger.info('[EXPORT] exportData créé:', {
+      hasExportInfo: !!exportData.export_info,
+      totalRecords: exportData.export_info.total_records,
+      dataKeys: Object.keys(exportData)
+    });
+
+    // VALIDATION CRITIQUE
+    if (!exportData || typeof exportData !== 'object') {
+      logger.error('[EXPORT ERROR] exportData est invalide:', exportData);
+      return res.status(500).json({ success: false, message: 'Données d\'export invalides' });
+    }
+
+    // TEST DE SÉRIALISATION
+    let jsonString;
+    try {
+      jsonString = JSON.stringify(exportData, null, 2);
+      logger.info('[EXPORT] Sérialisation JSON réussie, taille:', jsonString.length);
+    } catch (serializeError) {
+      logger.error('[EXPORT ERROR] Erreur sérialisation JSON:', serializeError);
+      return res.status(500).json({ success: false, message: 'Erreur sérialisation JSON' });
     }
 
     const fileName = `export-donnees-${new Date().toISOString().split('T')[0]}.json`;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
 
+    logger.info('[EXPORT] Envoi de la réponse, taille:', jsonString.length);
+
     // SOLUTION RECOMMANDÉE : res.send au lieu de res.json
-    return res.send(JSON.stringify(exportData, null, 2));
+    return res.send(jsonString);
   } catch (error) {
     console.error('❌ Erreur export global:', error);
     return res.status(500).json({
