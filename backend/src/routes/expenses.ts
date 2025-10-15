@@ -898,8 +898,11 @@ router.post('/:id/payments', asyncHandler(async (req: Request, res: Response) =>
 
     console.log('✅ Chèque créé:', {
       id: chequeResult.rows[0].id,
+      project_id: expense.project_id,
+      expense_id: id,
       montant: montantCheque,
-      mode: validatedData.mode_paiement
+      mode: validatedData.mode_paiement,
+      numero_cheque: validatedData.cheque_data.numero_cheque
     });
 
     // Lier le chèque au paiement

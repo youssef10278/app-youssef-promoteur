@@ -79,6 +79,43 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     console.log(`🎯 Filtrage par expense_id: ${expense_id} - Résultats: ${result.rows.length}`);
   }
 
+  // Debug: Afficher les premiers chèques avec leurs project_id et project_nom
+  if (result.rows.length > 0) {
+    console.log('🔍 [DEBUG] Premiers chèques:', result.rows.slice(0, 3).map(check => ({
+      id: check.id,
+      project_id: check.project_id,
+      project_nom: check.project_nom,
+      expense_id: check.expense_id,
+      expense_nom: check.expense_nom,
+      numero_cheque: check.numero_cheque
+    })));
+  }
+
+  const response: ApiResponse = {
+    success: true,
+    data: result.rows
+  };
+
+  res.json(response);
+}));
+
+// Route de debug pour un chèque spécifique
+router.get('/debug/:numero', asyncHandler(async (req: Request, res: Response) => {
+  const { numero } = req.params;
+
+  console.log('🔍 [DEBUG] Recherche chèque numéro:', numero);
+
+  const result = await query(
+    `SELECT c.*, p.nom as project_nom, e.nom as expense_nom, e.project_id as expense_project_id
+     FROM checks c
+     LEFT JOIN projects p ON c.project_id = p.id
+     LEFT JOIN expenses e ON c.expense_id = e.id
+     WHERE c.numero_cheque = $1 AND c.user_id = $2`,
+    [numero, req.user!.userId]
+  );
+
+  console.log('🔍 [DEBUG] Résultat recherche chèque:', result.rows);
+
   const response: ApiResponse = {
     success: true,
     data: result.rows
