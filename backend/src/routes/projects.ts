@@ -63,7 +63,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   let paramIndex = 2;
 
   // Recherche textuelle (nom, localisation, société)
-  if (filters.search) {
+  if (filters.search && filters.search.trim() !== '') {
     whereConditions.push(`(
       nom ILIKE $${paramIndex} OR
       localisation ILIKE $${paramIndex} OR
@@ -102,6 +102,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   // Construction de la clause ORDER BY
   const validSortColumns = {
     'created_at': 'created_at',
+    'date': 'created_at', // Alias pour compatibilité frontend
     'nom': 'nom',
     'localisation': 'localisation',
     'societe': 'societe',

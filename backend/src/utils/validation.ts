@@ -213,8 +213,8 @@ export const expenseFiltersSchema = Joi.object({
 
 // Schéma de validation pour les filtres des projets
 export const projectFiltersSchema = Joi.object({
-  search: Joi.string().max(200).optional(),
-  sortBy: Joi.string().valid('created_at', 'nom', 'localisation', 'societe', 'surface_totale', 'nombre_lots').default('created_at'),
+  search: Joi.string().max(200).allow('').optional(),
+  sortBy: Joi.string().valid('created_at', 'date', 'nom', 'localisation', 'societe', 'surface_totale', 'nombre_lots').default('created_at'),
   sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
   minSurface: Joi.number().min(0).optional(),
   maxSurface: Joi.number().min(0).optional(),
