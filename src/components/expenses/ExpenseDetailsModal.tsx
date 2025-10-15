@@ -204,7 +204,7 @@ export function ExpenseDetailsModal({ expense, onRefresh }: ExpenseDetailsModalP
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-sm text-muted-foreground">Projet</p>
-                    <p className="font-medium">{expense.projects?.nom || 'N/A'}</p>
+                    <p className="font-medium">{expense.project_nom || expense.projects?.nom || 'N/A'}</p>
                   </div>
                 </div>
 

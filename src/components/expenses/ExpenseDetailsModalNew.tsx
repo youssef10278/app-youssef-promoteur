@@ -168,7 +168,7 @@ const ExpenseDetailsModalNew: React.FC<ExpenseDetailsModalNewProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Projet</p>
-                    <p className="font-medium">{expense.projects?.nom || 'N/A'}</p>
+                    <p className="font-medium">{expense.project_nom || expense.projects?.nom || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Date de création</p>

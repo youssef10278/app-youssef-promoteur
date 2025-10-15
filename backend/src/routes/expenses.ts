@@ -712,6 +712,14 @@ router.post('/create-simple', asyncHandler(async (req: Request, res: Response) =
 
   console.log('🔍 [CREATE-SIMPLE] Dépense créée:', result.rows[0]);
 
+  // Migration temporaire : Mettre à jour les chèques sans project_id
+  await query(
+    `UPDATE checks
+     SET project_id = (SELECT project_id FROM expenses WHERE id = checks.expense_id)
+     WHERE project_id IS NULL AND expense_id IS NOT NULL`,
+    []
+  );
+
   const response: ApiResponse = {
     success: true,
     data: result.rows[0],
@@ -735,9 +743,12 @@ router.get('/:id/with-payments', asyncHandler(async (req: Request, res: Response
     throw createError('Dépense non trouvée', 404);
   }
 
-  // Récupérer la dépense avec les totaux calculés
+  // Récupérer la dépense avec les totaux calculés et le nom du projet
   const expenseResult = await query(
-    `SELECT * FROM expenses_with_totals WHERE id = $1`,
+    `SELECT ewt.*, p.nom as project_nom
+     FROM expenses_with_totals ewt
+     LEFT JOIN projects p ON ewt.project_id = p.id
+     WHERE ewt.id = $1`,
     [id]
   );
 
@@ -863,14 +874,15 @@ router.post('/:id/payments', asyncHandler(async (req: Request, res: Response) =>
 
     const chequeResult = await query(
       `INSERT INTO checks (
-         user_id, expense_id, type_cheque, montant, numero_cheque,
+         user_id, project_id, expense_id, type_cheque, montant, numero_cheque,
          nom_beneficiaire, nom_emetteur, date_emission, date_encaissement,
          statut, description
        )
-       VALUES ($1, $2, 'donne', $3, $4, $5, $6, $7, $8, 'emis', $9)
+       VALUES ($1, $2, $3, 'donne', $4, $5, $6, $7, $8, $9, 'emis', $10)
        RETURNING *`,
       [
         req.user!.userId,
+        expense.project_id, // ✅ Ajouter le project_id
         id,
         montantCheque,
         validatedData.cheque_data.numero_cheque,
@@ -1072,17 +1084,25 @@ router.put('/payments/:paymentId', asyncHandler(async (req: Request, res: Respon
         ? validatedData.cheque_data.montant_cheque
         : validatedData.montant_paye;
 
+      // Récupérer le project_id de la dépense
+      const expenseResult = await query(
+        'SELECT project_id FROM expenses WHERE id = $1',
+        [payment.expense_id]
+      );
+      const expenseProjectId = expenseResult.rows[0]?.project_id;
+
       // Créer un nouveau chèque et le lier au paiement
       const newCheckResult = await query(
         `INSERT INTO checks (
-           user_id, expense_id, type_cheque, montant, numero_cheque,
+           user_id, project_id, expense_id, type_cheque, montant, numero_cheque,
            nom_beneficiaire, nom_emetteur, date_emission, date_encaissement,
            statut, description
          )
-         VALUES ($1, $2, 'donne', $3, $4, $5, $6, $7, $8, 'emis', $9)
+         VALUES ($1, $2, $3, 'donne', $4, $5, $6, $7, $8, $9, 'emis', $10)
          RETURNING id`,
         [
           req.user!.userId,
+          expenseProjectId, // ✅ Ajouter le project_id
           payment.expense_id,
           montantCheque,
           validatedData.cheque_data.numero_cheque,
