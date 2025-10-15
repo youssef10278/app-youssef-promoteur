@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/components/layout/AppLayout';
-import { DataImportExport } from '@/components/settings/DataImportExport';
+
 
 import {
   ArrowLeft,
@@ -20,8 +20,7 @@ import {
   Palette,
   Save,
   Eye,
-  EyeOff,
-  Download
+  EyeOff
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -191,17 +190,7 @@ const Settings = () => {
             <Shield className="h-4 w-4" />
             <span>Sécurité</span>
           </button>
-          <button
-            onClick={() => setActiveTab('export')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'export'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Download className="h-4 w-4" />
-            <span>Données</span>
-          </button>
+
         </div>
 
         {/* Contenu des onglets */}
@@ -378,9 +367,7 @@ const Settings = () => {
           </>
         )}
 
-        {activeTab === 'export' && (
-          <DataImportExport />
-        )}
+
       </div>
     </AppLayout>
   );
