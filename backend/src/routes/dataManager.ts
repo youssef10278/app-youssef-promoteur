@@ -30,6 +30,41 @@ router.get('/test-export', async (req: Request, res: Response) => {
   }
 });
 
+// Endpoint de debug pour l'export AVEC authentification
+router.get('/debug-export', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    logger.info('🔍 [DEBUG EXPORT] Début du debug export');
+    const userId = (req as any).user?.userId;
+
+    logger.info('🔍 [DEBUG EXPORT] User object:', (req as any).user);
+    logger.info('🔍 [DEBUG EXPORT] UserId extracted:', userId);
+
+    if (!userId) {
+      logger.error('🔍 [DEBUG EXPORT] PROBLÈME: userId est undefined');
+      return res.json({
+        error: 'userId undefined',
+        user: (req as any).user,
+        headers: req.headers.authorization
+      });
+    }
+
+    // Test simple d'une requête
+    const testResult = await query('SELECT COUNT(*) as count FROM projects WHERE user_id = $1', [userId]);
+    logger.info('🔍 [DEBUG EXPORT] Test query result:', testResult);
+
+    return res.json({
+      success: true,
+      userId: userId,
+      testQuery: testResult.rows[0],
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('🔍 [DEBUG EXPORT] Erreur:', error);
+    return res.json({ error: (error as Error).message, stack: (error as Error).stack });
+  }
+});
+
 router.use(authenticateToken);
 
 // Export global
