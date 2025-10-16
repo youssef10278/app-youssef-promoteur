@@ -51,7 +51,7 @@ const Projects = () => {
     if (user) {
       loadProjects(filters);
     }
-  }, [user, filters]); // Retirer loadProjects des dépendances
+  }, [user, filters, loadProjects]);
 
   // Gestionnaire de changement de filtres
   const handleFiltersChange = useCallback((newFilters: ProjectFiltersState) => {

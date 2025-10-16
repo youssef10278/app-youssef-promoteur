@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -55,27 +55,36 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
   // Debounce pour la recherche avec comparaison pour éviter les appels inutiles
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Vérifier si les filtres ont vraiment changé
-      const hasChanged = JSON.stringify(localFilters) !== JSON.stringify(filters);
-      if (hasChanged) {
+      // Comparaison plus stable des filtres
+      const isEqual = (
+        localFilters.searchTerm === filters.searchTerm &&
+        localFilters.sortBy === filters.sortBy &&
+        localFilters.sortOrder === filters.sortOrder &&
+        localFilters.minSurface === filters.minSurface &&
+        localFilters.maxSurface === filters.maxSurface &&
+        localFilters.minLots === filters.minLots &&
+        localFilters.maxLots === filters.maxLots
+      );
+
+      if (!isEqual) {
         console.log('🔍 Filtres changés, mise à jour:', localFilters);
         onFiltersChange(localFilters);
       }
-    }, 500); // Augmenter le délai pour réduire les requêtes
+    }, 300); // Réduire le délai pour une meilleure réactivité
 
     return () => clearTimeout(timer);
   }, [localFilters, onFiltersChange, filters]);
 
-  const updateFilter = (key: keyof ProjectFiltersState, value: any) => {
+  const updateFilter = useCallback((key: keyof ProjectFiltersState, value: any) => {
     setLocalFilters(prev => ({
       ...prev,
       [key]: value
     }));
-  };
+  }, []);
 
-  const toggleSortOrder = () => {
+  const toggleSortOrder = useCallback(() => {
     updateFilter('sortOrder', localFilters.sortOrder === 'asc' ? 'desc' : 'asc');
-  };
+  }, [localFilters.sortOrder, updateFilter]);
 
   const resetFilters = () => {
     const defaultFilters: ProjectFiltersState = {
