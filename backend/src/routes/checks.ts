@@ -24,13 +24,13 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const queryParams = [req.user!.userId];
   let paramIndex = 2;
 
-  if (type) {
+  if (type && type !== 'all') {
     whereConditions.push(`c.type_cheque = $${paramIndex}`);
     queryParams.push(type as string);
     paramIndex++;
   }
 
-  if (statut) {
+  if (statut && statut !== 'all') {
     whereConditions.push(`c.statut = $${paramIndex}`);
     queryParams.push(statut as string);
     paramIndex++;

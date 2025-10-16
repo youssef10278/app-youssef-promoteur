@@ -84,9 +84,12 @@ const Checks = () => {
         queryParams.append('project_id', selectedProject);
       }
 
+      // Convertir les filtres avec les bons noms de paramètres pour le backend
       Object.entries(filters).forEach(([key, value]) => {
-        if (value !== null && value !== '' && value !== undefined) {
-          queryParams.append(key, value.toString());
+        if (value !== null && value !== '' && value !== undefined && value !== 'all') {
+          // Convertir type_cheque en type pour le backend
+          const backendKey = key === 'type_cheque' ? 'type' : key;
+          queryParams.append(backendKey, value.toString());
         }
       });
 
