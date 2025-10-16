@@ -48,15 +48,25 @@ const Projects = () => {
 
   // Charger les projets au montage et quand les filtres changent
   useEffect(() => {
+    console.log('🎯 [Projects] useEffect principal déclenché:', {
+      user: !!user,
+      filters,
+      timestamp: new Date().toISOString()
+    });
+
     if (user) {
       loadProjects(filters);
     }
   }, [user, filters, loadProjects]);
 
-  // Gestionnaire de changement de filtres
-  const handleFiltersChange = useCallback((newFilters: ProjectFiltersState) => {
+  // Gestionnaire de changement de filtres - PAS de useCallback pour éviter les re-créations
+  const handleFiltersChange = (newFilters: ProjectFiltersState) => {
+    console.log('🎯 [Projects] handleFiltersChange appelé:', {
+      newFilters,
+      timestamp: new Date().toISOString()
+    });
     setFilters(newFilters);
-  }, []);
+  };
 
   // Modifier un projet
   const handleEditProject = (project: Project) => {
