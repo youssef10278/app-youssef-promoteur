@@ -190,28 +190,28 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="text-center p-3 bg-green-50 rounded-lg">
                   <div className="text-xl sm:text-2xl font-bold text-green-600">
-                    {formatAmount(expense.total_declare_calcule || 0)} DH
+                    {formatAmount(Number(expense.total_declare_calcule || 0))} DH
                   </div>
                   <div className="text-sm text-green-700">Montant principal</div>
                 </div>
 
                 <div className="text-center p-3 bg-orange-50 rounded-lg">
                   <div className="text-xl sm:text-2xl font-bold text-orange-600">
-                    {formatAmount(expense.total_non_declare_calcule || 0)} DH
+                    {formatAmount(Number(expense.total_non_declare_calcule || 0))} DH
                   </div>
                   <div className="text-sm text-orange-700">Autre montant</div>
                 </div>
 
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
                   <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                    {formatAmount((expense.total_declare_calcule || 0) + (expense.total_non_declare_calcule || 0))} DH
+                    {formatAmount(Number(expense.total_declare_calcule || 0) + Number(expense.total_non_declare_calcule || 0))} DH
                   </div>
                   <div className="text-sm text-blue-700">Montant total</div>
                 </div>
 
                 <div className="text-center p-3 bg-purple-50 rounded-lg">
                   <div className="text-xl sm:text-2xl font-bold text-purple-600">
-                    {formatAmount(expense.total_paye_calcule || 0)} DH
+                    {formatAmount(Number(expense.total_paye_calcule || 0))} DH
                   </div>
                   <div className="text-sm text-purple-700">Montant payé</div>
                 </div>

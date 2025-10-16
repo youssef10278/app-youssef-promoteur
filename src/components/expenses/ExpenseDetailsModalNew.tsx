@@ -200,19 +200,19 @@ const ExpenseDetailsModalNew: React.FC<ExpenseDetailsModalNewProps> = ({
                   <div className="text-center p-4 bg-blue-50 rounded-lg">
                     <p className="text-sm text-muted-foreground">Total Payé</p>
                     <p className="text-2xl font-bold text-blue-600">
-                      {formatAmount(expense.total_paye_calcule || 0)}
+                      {formatAmount(Number(expense.total_paye_calcule || 0))}
                     </p>
                   </div>
                   <div className="text-center p-4 bg-green-50 rounded-lg">
                     <p className="text-sm text-muted-foreground">Montant Principal</p>
                     <p className="text-2xl font-bold text-green-600">
-                      {formatAmount(expense.total_declare_calcule || 0)}
+                      {formatAmount(Number(expense.total_declare_calcule || 0))}
                     </p>
                   </div>
                   <div className="text-center p-4 bg-orange-50 rounded-lg">
                     <p className="text-sm text-muted-foreground">Autre Montant</p>
                     <p className="text-2xl font-bold text-orange-600">
-                      {formatAmount(expense.total_non_declare_calcule || 0)}
+                      {formatAmount(Number(expense.total_non_declare_calcule || 0))}
                     </p>
                   </div>
                 </div>
