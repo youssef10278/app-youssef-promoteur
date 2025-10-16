@@ -77,71 +77,66 @@ export class CheckService {
       if (response.data && response.data.success !== undefined) {
         // Réponse avec structure { success: boolean, data: Check[] }
         console.log('🔍 [CheckService] Réponse API structurée:', response.data);
-        return response.data;
+        let checks = response.data.data || [];
+
+        // Appliquer les filtres côté client seulement si filters est un objet
+        if (typeof filters === 'object' && filters !== null) {
+          // Filtrage côté client pour les critères non supportés par l'API
+          if (filters.searchTerm) {
+            const searchTerm = filters.searchTerm.toLowerCase();
+            checks = checks.filter((check: Check) =>
+              check.numero_cheque?.toLowerCase().includes(searchTerm) ||
+              check.nom_beneficiaire?.toLowerCase().includes(searchTerm) ||
+              check.nom_emetteur?.toLowerCase().includes(searchTerm) ||
+              check.description?.toLowerCase().includes(searchTerm) ||
+              check.project_nom?.toLowerCase().includes(searchTerm)
+            );
+          }
+
+          if (filters.date_debut) {
+            checks = checks.filter((check: Check) =>
+              new Date(check.date_emission) >= new Date(filters.date_debut!)
+            );
+          }
+
+          if (filters.date_fin) {
+            checks = checks.filter((check: Check) =>
+              new Date(check.date_emission) <= new Date(filters.date_fin!)
+            );
+          }
+
+          if (filters.montant_min) {
+            checks = checks.filter((check: Check) => check.montant >= filters.montant_min!);
+          }
+
+          if (filters.montant_max) {
+            checks = checks.filter((check: Check) => check.montant <= filters.montant_max!);
+          }
+
+          // Tri
+          const sortBy = filters.sortBy || 'created_at';
+          const sortOrder = filters.sortOrder || 'desc';
+
+          checks.sort((a: Check, b: Check) => {
+            const aValue = a[sortBy as keyof Check];
+            const bValue = b[sortBy as keyof Check];
+
+            if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+            return 0;
+          });
+
+          console.log('🔍 [CheckService] Chèques finaux après filtrage et tri:', checks);
+          console.log('🔍 [CheckService] Nombre final de chèques:', checks.length);
+        }
+
+        return { success: true, data: checks };
       } else {
         // Réponse directe avec array de chèques
         const checks = response.data || [];
         console.log('🔍 [CheckService] Réponse API directe:', checks);
         return { success: true, data: checks };
       }
-
-      // Appliquer les filtres côté client seulement si filters est un objet
-      if (typeof filters === 'object' && filters !== null) {
-        let checks = response.data?.data || response.data || [];
-
-        // Filtrage côté client pour les critères non supportés par l'API
-        if (filters.searchTerm) {
-          const searchTerm = filters.searchTerm.toLowerCase();
-          checks = checks.filter((check: Check) =>
-            check.numero_cheque?.toLowerCase().includes(searchTerm) ||
-            check.nom_beneficiaire?.toLowerCase().includes(searchTerm) ||
-            check.nom_emetteur?.toLowerCase().includes(searchTerm) ||
-            check.description?.toLowerCase().includes(searchTerm) ||
-            check.project_nom?.toLowerCase().includes(searchTerm)
-          );
-        }
-
-        if (filters.date_debut) {
-          checks = checks.filter((check: Check) =>
-            new Date(check.date_emission) >= new Date(filters.date_debut!)
-          );
-        }
-
-        if (filters.date_fin) {
-          checks = checks.filter((check: Check) =>
-            new Date(check.date_emission) <= new Date(filters.date_fin!)
-          );
-        }
-
-        if (filters.montant_min) {
-          checks = checks.filter((check: Check) => check.montant >= filters.montant_min!);
-        }
-
-        if (filters.montant_max) {
-          checks = checks.filter((check: Check) => check.montant <= filters.montant_max!);
-        }
-
-        // Tri
-        const sortBy = filters.sortBy || 'created_at';
-        const sortOrder = filters.sortOrder || 'desc';
-
-        checks.sort((a: Check, b: Check) => {
-          const aValue = a[sortBy as keyof Check];
-          const bValue = b[sortBy as keyof Check];
-
-          if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-          if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-          return 0;
-        });
-
-        console.log('🔍 [CheckService] Chèques finaux après filtrage et tri:', checks);
-        console.log('🔍 [CheckService] Nombre final de chèques:', checks.length);
-
-        return { success: true, data: checks };
-      }
-
-      // Si filters est une string, retourner la réponse telle quelle
-      return response.data?.success !== undefined ? response.data : { success: true, data: response.data || [] };
     } catch (error) {
       console.error('Erreur lors de la récupération des chèques:', error);
       throw error;
