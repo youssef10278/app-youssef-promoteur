@@ -61,12 +61,22 @@ const Checks = () => {
 
   const fetchProjects = useCallback(async () => {
     try {
+      console.log('🔍 [Checks] Chargement des projets...');
       const response = await apiClient.get('/projects');
-      if (response.data.success) {
-        setProjects(response.data.data);
+      console.log('🔍 [Checks] Réponse API projets:', response);
+
+      if (response.data && response.data.success) {
+        console.log('🔍 [Checks] Projets reçus:', response.data.data);
+        setProjects(response.data.data || []);
+      } else {
+        console.log('🔍 [Checks] Structure de réponse inattendue:', response.data);
+        // Fallback: essayer d'utiliser directement response.data
+        const projects = response.data || [];
+        setProjects(Array.isArray(projects) ? projects : []);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des projets:', error);
+      setProjects([]); // S'assurer que projects est un tableau vide en cas d'erreur
     }
   }, []);
 
@@ -475,6 +485,12 @@ const Checks = () => {
               allOptionLabel="Tous les projets"
               className="w-[300px]"
             />
+            {/* Debug: Afficher le nombre de projets */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="text-xs text-gray-500">
+                {projects.length} projet(s) chargé(s)
+              </div>
+            )}
           </div>
 
           <CheckFiltersComponent
