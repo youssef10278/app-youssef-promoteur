@@ -52,28 +52,15 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
     setLocalFilters(filters);
   }, [filters]);
 
-  // Debounce pour la recherche avec comparaison pour éviter les appels inutiles
+  // Debounce simple comme dans Expenses - pas de comparaison complexe
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Comparaison plus stable des filtres
-      const isEqual = (
-        localFilters.searchTerm === filters.searchTerm &&
-        localFilters.sortBy === filters.sortBy &&
-        localFilters.sortOrder === filters.sortOrder &&
-        localFilters.minSurface === filters.minSurface &&
-        localFilters.maxSurface === filters.maxSurface &&
-        localFilters.minLots === filters.minLots &&
-        localFilters.maxLots === filters.maxLots
-      );
-
-      if (!isEqual) {
-        console.log('🔍 Filtres changés, mise à jour:', localFilters);
-        onFiltersChange(localFilters);
-      }
-    }, 300); // Réduire le délai pour une meilleure réactivité
+      console.log('🔍 Filtres changés, mise à jour:', localFilters);
+      onFiltersChange(localFilters);
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [localFilters, onFiltersChange, filters]);
+  }, [localFilters, onFiltersChange]);
 
   const updateFilter = useCallback((key: keyof ProjectFiltersState, value: any) => {
     setLocalFilters(prev => ({
