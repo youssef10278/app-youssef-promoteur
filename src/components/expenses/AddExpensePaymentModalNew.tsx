@@ -64,11 +64,18 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
 
   const getInitialFormData = (): ExpensePaymentFormData => {
     if (editingPayment) {
+      // Calculer le montant chèque pour les paiements mixtes
+      const montantEspeces = Number(editingPayment.montant_especes || 0);
+      const montantPaye = Number(editingPayment.montant_paye || 0);
+      const montantCheque = editingPayment.mode_paiement === 'cheque_espece' 
+        ? montantPaye - montantEspeces 
+        : (editingPayment.mode_paiement === 'cheque' ? montantPaye : 0);
+
       return {
-        montant_paye: editingPayment.montant_paye,
-        montant_declare: editingPayment.montant_declare,
-        montant_non_declare: editingPayment.montant_non_declare,
-        montant_especes: editingPayment.montant_especes || 0,  // NEW
+        montant_paye: montantPaye,
+        montant_declare: Number(editingPayment.montant_declare || 0),
+        montant_non_declare: Number(editingPayment.montant_non_declare || 0),
+        montant_especes: montantEspeces,
         date_paiement: editingPayment.date_paiement.split('T')[0],
         mode_paiement: editingPayment.mode_paiement,
         description: editingPayment.description || '',
@@ -80,9 +87,7 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
           date_emission: editingPayment.check_data.date_emission.split('T')[0],
           date_encaissement: editingPayment.check_data.date_encaissement.split('T')[0],
           banque_emettrice: '',
-          montant_cheque: editingPayment.mode_paiement === 'cheque_espece'
-            ? editingPayment.montant_paye - (editingPayment.montant_especes || 0)
-            : undefined,  // NEW
+          montant_cheque: montantCheque,
         } : {
           numero_cheque: editingPayment.reference_paiement || '',
           nom_beneficiaire: '',
@@ -90,7 +95,7 @@ const AddExpensePaymentModalNew: React.FC<AddExpensePaymentModalNewProps> = ({
           date_emission: editingPayment.date_paiement.split('T')[0],
           date_encaissement: editingPayment.date_paiement.split('T')[0],
           banque_emettrice: '',
-          montant_cheque: undefined,  // NEW
+          montant_cheque: montantCheque,
         },
       };
     }

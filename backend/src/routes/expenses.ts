@@ -772,6 +772,7 @@ router.get('/:id/with-payments', asyncHandler(async (req: Request, res: Response
       montant_paye: row.montant_paye,
       montant_declare: row.montant_declare,
       montant_non_declare: row.montant_non_declare,
+      montant_especes: row.montant_especes || 0,  // Ajouter le champ manquant
       date_paiement: row.date_paiement,
       mode_paiement: row.mode_paiement,
       description: row.description,
