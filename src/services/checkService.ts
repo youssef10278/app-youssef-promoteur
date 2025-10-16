@@ -65,8 +65,8 @@ export class CheckService {
       } else {
         // Sinon, construire les paramètres à partir de l'objet filters
         const params = new URLSearchParams();
-        if (filters.type_cheque) params.append('type', filters.type_cheque);
-        if (filters.statut) params.append('statut', filters.statut);
+        if (filters.type_cheque && filters.type_cheque !== 'all') params.append('type', filters.type_cheque);
+        if (filters.statut && filters.statut !== 'all') params.append('statut', filters.statut);
         queryString = params.toString();
       }
 

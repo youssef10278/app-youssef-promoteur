@@ -10,12 +10,12 @@ import { Separator } from '@/components/ui/separator';
 
 export interface CheckFiltersState {
   searchTerm: string;
-  type_cheque: 'recu' | 'donne' | '';
+  type_cheque: 'recu' | 'donne' | 'all';
   date_debut: Date | null;
   date_fin: Date | null;
   montant_min: number | null;
   montant_max: number | null;
-  statut: string;
+  statut: 'emis' | 'encaisse' | 'rejete' | 'all';
   nom_beneficiaire: string;
   nom_emetteur: string;
   numero_cheque: string;
@@ -30,13 +30,13 @@ interface CheckFiltersProps {
 }
 
 const CHECK_TYPES = [
-  { value: '', label: 'Tous les types' },
+  { value: 'all', label: 'Tous les types' },
   { value: 'recu', label: 'Chèques reçus' },
   { value: 'donne', label: 'Chèques donnés' }
 ];
 
 const CHECK_STATUS = [
-  { value: '', label: 'Tous les statuts' },
+  { value: 'all', label: 'Tous les statuts' },
   { value: 'emis', label: 'Émis' },
   { value: 'encaisse', label: 'Encaissé' },
   { value: 'rejete', label: 'Rejeté' }
@@ -73,12 +73,12 @@ export const CheckFilters: React.FC<CheckFiltersProps> = ({
   const resetFilters = () => {
     const resetFilters: CheckFiltersState = {
       searchTerm: '',
-      type_cheque: '',
+      type_cheque: 'all',
       date_debut: null,
       date_fin: null,
       montant_min: null,
       montant_max: null,
-      statut: '',
+      statut: 'all',
       nom_beneficiaire: '',
       nom_emetteur: '',
       numero_cheque: '',
@@ -94,7 +94,7 @@ export const CheckFilters: React.FC<CheckFiltersProps> = ({
     if (key === 'searchTerm') {
       setSearchValue('');
     }
-    handleFilterChange(key, key === 'sortBy' ? 'created_at' : key === 'sortOrder' ? 'desc' : key.includes('date') ? null : key.includes('montant') ? null : '');
+    handleFilterChange(key, key === 'sortBy' ? 'created_at' : key === 'sortOrder' ? 'desc' : key.includes('date') ? null : key.includes('montant') ? null : key === 'type_cheque' ? 'all' : key === 'statut' ? 'all' : '');
   };
 
   const toggleSortOrder = () => {
@@ -104,12 +104,12 @@ export const CheckFilters: React.FC<CheckFiltersProps> = ({
   // Compter les filtres actifs
   const activeFiltersCount = [
     filters.searchTerm,
-    filters.type_cheque,
+    filters.type_cheque !== 'all' ? filters.type_cheque : null,
     filters.date_debut,
     filters.date_fin,
     filters.montant_min,
     filters.montant_max,
-    filters.statut,
+    filters.statut !== 'all' ? filters.statut : null,
     filters.nom_beneficiaire,
     filters.nom_emetteur,
     filters.numero_cheque
@@ -288,13 +288,13 @@ export const CheckFilters: React.FC<CheckFiltersProps> = ({
               <X className="h-3 w-3 cursor-pointer" onClick={() => removeFilter('searchTerm')} />
             </Badge>
           )}
-          {filters.type_cheque && (
+          {filters.type_cheque && filters.type_cheque !== 'all' && (
             <Badge variant="secondary" className="gap-1">
               Type: {CHECK_TYPES.find(t => t.value === filters.type_cheque)?.label}
               <X className="h-3 w-3 cursor-pointer" onClick={() => removeFilter('type_cheque')} />
             </Badge>
           )}
-          {filters.statut && (
+          {filters.statut && filters.statut !== 'all' && (
             <Badge variant="secondary" className="gap-1">
               Statut: {CHECK_STATUS.find(s => s.value === filters.statut)?.label}
               <X className="h-3 w-3 cursor-pointer" onClick={() => removeFilter('statut')} />

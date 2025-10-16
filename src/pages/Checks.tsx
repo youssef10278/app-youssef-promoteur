@@ -44,12 +44,12 @@ const Checks = () => {
   // États pour les filtres
   const [filters, setFilters] = useState<CheckFiltersState>({
     searchTerm: '',
-    type_cheque: '',
+    type_cheque: 'all',
     date_debut: null,
     date_fin: null,
     montant_min: null,
     montant_max: null,
-    statut: '',
+    statut: 'all',
     nom_beneficiaire: '',
     nom_emetteur: '',
     numero_cheque: ''
