@@ -44,47 +44,36 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
   totalResults,
   isLoading
 }) => {
-  // Approche comme CheckFilters : état local seulement pour searchTerm
-  const [searchValue, setSearchValue] = useState(filters.searchTerm);
+  // APPROCHE SIMPLE COMME EXPENSES - PAS DE SYNCHRONISATION
+  const [localFilters, setLocalFilters] = useState<ProjectFiltersState>(filters);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  // Synchroniser searchValue avec les filtres externes
+  // Debounce simple comme Expenses - PAS de comparaison
   useEffect(() => {
-    setSearchValue(filters.searchTerm);
-  }, [filters.searchTerm]);
-
-  // Debounce SEULEMENT pour searchTerm (comme CheckFilters)
-  useEffect(() => {
-    console.log('🎯 [ProjectFilters] Debounce searchTerm:', searchValue);
+    console.log('🎯 [ProjectFilters] Debounce simple:', localFilters);
 
     const timer = setTimeout(() => {
-      console.log('🔍 [ProjectFilters] Timer searchTerm expiré, appel onFiltersChange');
-      onFiltersChange({ ...filters, searchTerm: searchValue });
+      console.log('🔍 [ProjectFilters] Timer expiré, appel onFiltersChange');
+      onFiltersChange(localFilters);
     }, 300);
 
     return () => {
-      console.log('⏹️ [ProjectFilters] Timer searchTerm annulé');
+      console.log('⏹️ [ProjectFilters] Timer annulé');
       clearTimeout(timer);
     };
-  }, [searchValue]); // SEULEMENT searchValue, comme CheckFilters
+  }, [localFilters]); // Comme Expenses
 
-  // Fonction normale comme CheckFilters - PAS de useCallback pour éviter la boucle infinie
+  // Fonction simple comme Expenses - TOUT en local + debounce
   const updateFilter = (key: keyof ProjectFiltersState, value: any) => {
     console.log('🎯 [ProjectFilters] updateFilter appelé:', { key, value });
-
-    if (key === 'searchTerm') {
-      // Pour searchTerm : état local + debounce
-      console.log('🔍 [ProjectFilters] Mise à jour searchValue (debounce)');
-      setSearchValue(value);
-    } else {
-      // Pour les autres filtres : appel direct (comme CheckFilters)
-      console.log('🚀 [ProjectFilters] Appel direct onFiltersChange pour:', key);
-      onFiltersChange({ ...filters, [key]: value });
-    }
+    setLocalFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
   };
 
   const toggleSortOrder = () => {
-    updateFilter('sortOrder', filters.sortOrder === 'asc' ? 'desc' : 'asc');
+    updateFilter('sortOrder', localFilters.sortOrder === 'asc' ? 'desc' : 'asc');
   };
 
   const resetFilters = () => {
@@ -97,18 +86,17 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
       minLots: undefined,
       maxLots: undefined,
     };
-    setSearchValue(''); // Reset search value
-    onFiltersChange(defaultFilters); // Direct call
+    setLocalFilters(defaultFilters); // Comme Expenses
     setShowAdvancedFilters(false);
   };
 
   const getActiveFiltersCount = () => {
     let count = 0;
-    if (filters.searchTerm) count++;
-    if (filters.minSurface) count++;
-    if (filters.maxSurface) count++;
-    if (filters.minLots) count++;
-    if (filters.maxLots) count++;
+    if (localFilters.searchTerm) count++;
+    if (localFilters.minSurface) count++;
+    if (localFilters.maxSurface) count++;
+    if (localFilters.minLots) count++;
+    if (localFilters.maxLots) count++;
     return count;
   };
 
@@ -122,7 +110,7 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Rechercher par nom, localisation, société..."
-              value={searchValue}
+              value={localFilters.searchTerm}
               onChange={(e) => updateFilter('searchTerm', e.target.value)}
               className="pl-10"
             />
@@ -133,7 +121,7 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
             {/* Sélecteur de tri */}
             <div className="flex items-center gap-2 flex-1">
               <Select
-                value={filters.sortBy}
+                value={localFilters.sortBy}
                 onValueChange={(value) => updateFilter('sortBy', value)}
               >
                 <SelectTrigger className="w-full sm:w-48">
@@ -154,7 +142,7 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
                 onClick={toggleSortOrder}
                 className="flex-shrink-0"
               >
-                {filters.sortOrder === 'asc' ? (
+                {localFilters.sortOrder === 'asc' ? (
                   <SortAsc className="h-4 w-4" />
                 ) : (
                   <SortDesc className="h-4 w-4" />
@@ -204,7 +192,7 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
                 <Input
                   type="number"
                   placeholder="Ex: 100"
-                  value={filters.minSurface || ''}
+                  value={localFilters.minSurface || ''}
                   onChange={(e) => updateFilter('minSurface', e.target.value ? Number(e.target.value) : undefined)}
                 />
               </div>
@@ -215,7 +203,7 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
                 <Input
                   type="number"
                   placeholder="Ex: 1000"
-                  value={filters.maxSurface || ''}
+                  value={localFilters.maxSurface || ''}
                   onChange={(e) => updateFilter('maxSurface', e.target.value ? Number(e.target.value) : undefined)}
                 />
               </div>
@@ -226,7 +214,7 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
                 <Input
                   type="number"
                   placeholder="Ex: 10"
-                  value={filters.minLots || ''}
+                  value={localFilters.minLots || ''}
                   onChange={(e) => updateFilter('minLots', e.target.value ? Number(e.target.value) : undefined)}
                 />
               </div>
@@ -237,7 +225,7 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
                 <Input
                   type="number"
                   placeholder="Ex: 100"
-                  value={filters.maxLots || ''}
+                  value={localFilters.maxLots || ''}
                   onChange={(e) => updateFilter('maxLots', e.target.value ? Number(e.target.value) : undefined)}
                 />
               </div>
@@ -258,29 +246,29 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
           {/* Badges des filtres actifs */}
           {getActiveFiltersCount() > 0 && (
             <div className="flex flex-wrap gap-1">
-              {filters.searchTerm && (
+              {localFilters.searchTerm && (
                 <Badge variant="secondary" className="text-xs">
-                  Recherche: {filters.searchTerm}
+                  Recherche: {localFilters.searchTerm}
                 </Badge>
               )}
-              {filters.minSurface && (
+              {localFilters.minSurface && (
                 <Badge variant="secondary" className="text-xs">
-                  Surface ≥ {filters.minSurface}m²
+                  Surface ≥ {localFilters.minSurface}m²
                 </Badge>
               )}
-              {filters.maxSurface && (
+              {localFilters.maxSurface && (
                 <Badge variant="secondary" className="text-xs">
-                  Surface ≤ {filters.maxSurface}m²
+                  Surface ≤ {localFilters.maxSurface}m²
                 </Badge>
               )}
-              {filters.minLots && (
+              {localFilters.minLots && (
                 <Badge variant="secondary" className="text-xs">
-                  Lots ≥ {filters.minLots}
+                  Lots ≥ {localFilters.minLots}
                 </Badge>
               )}
-              {filters.maxLots && (
+              {localFilters.maxLots && (
                 <Badge variant="secondary" className="text-xs">
-                  Lots ≤ {filters.maxLots}
+                  Lots ≤ {localFilters.maxLots}
                 </Badge>
               )}
             </div>
