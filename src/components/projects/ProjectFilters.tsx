@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -68,8 +68,8 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
     };
   }, [searchValue]); // SEULEMENT searchValue, comme CheckFilters
 
-  // Approche comme CheckFilters : traitement différent selon le type de filtre
-  const updateFilter = useCallback((key: keyof ProjectFiltersState, value: any) => {
+  // Fonction normale comme CheckFilters - PAS de useCallback pour éviter la boucle infinie
+  const updateFilter = (key: keyof ProjectFiltersState, value: any) => {
     console.log('🎯 [ProjectFilters] updateFilter appelé:', { key, value });
 
     if (key === 'searchTerm') {
@@ -81,11 +81,11 @@ export const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
       console.log('🚀 [ProjectFilters] Appel direct onFiltersChange pour:', key);
       onFiltersChange({ ...filters, [key]: value });
     }
-  }, [filters, onFiltersChange]);
+  };
 
-  const toggleSortOrder = useCallback(() => {
+  const toggleSortOrder = () => {
     updateFilter('sortOrder', filters.sortOrder === 'asc' ? 'desc' : 'asc');
-  }, [filters.sortOrder, updateFilter]);
+  };
 
   const resetFilters = () => {
     const defaultFilters: ProjectFiltersState = {
